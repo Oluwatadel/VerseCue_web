@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 15% 0%,rgba(37,99,235,.25),transparent 35%),radial-gradient(circle at 90% 20%,rgba(109,40,217,.22),transparent 30%),#030b1c;color:#f8fafc}
+@layer components{
+.container-x{@apply mx-auto w-full max-w-7xl px-5 sm:px-8}
+.glass{@apply border border-white/10 bg-white/[.06] backdrop-blur-xl}
+.btn-primary{@apply rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-500}
+.btn-secondary{@apply rounded-xl border border-white/15 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10}
+.input{@apply w-full rounded-xl border border-white/10 bg-white/[.06] px-4 py-3 text-white outline-none placeholder:text-slate-500 focus:border-blue-400}
+}
