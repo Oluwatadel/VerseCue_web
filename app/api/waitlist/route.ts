@@ -1,43 +1,88 @@
 import { NextResponse } from "next/server";
-import { readWaitlist, writeWaitlist, type WaitlistEntry } from "../../../lib/waitlist-store";
+import { addWaitlistEntry } from "../../../lib/waitlist-store";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const b = await request.json();
-    const name = String(b.name ?? "").trim();
-    const email = String(b.email ?? "").trim().toLowerCase();
+    const body = await request.json();
+
+    const name = String(body.name ?? "").trim();
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const church = String(body.church ?? "").trim();
+    const role = String(body.role ?? "").trim();
 
     if (!name || !email) {
       return NextResponse.json(
-        { error: "Name and email are required." },
+        {
+          error: "Name and email are required.",
+        },
         { status: 400 }
       );
     }
 
-    const entries = await readWaitlist();
-
-    if (entries.some((x) => x.email === email)) {
-      return NextResponse.json({
-        message: "You're already on the VerseCue waitlist.",
-      });
+    if (name.length > 150) {
+      return NextResponse.json(
+        {
+          error: "Name is too long.",
+        },
+        { status: 400 }
+      );
     }
 
-    const entry: WaitlistEntry = {
+    if (email.length > 320) {
+      return NextResponse.json(
+        {
+          error: "Email address is too long.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        {
+          error: "Please enter a valid email address.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const entry = {
       id: crypto.randomUUID(),
       name,
       email,
-      church: String(b.church ?? "").trim(),
-      role: String(b.role ?? "").trim(),
+      church,
+      role,
       createdAt: new Date().toISOString(),
     };
 
-    entries.push(entry);
-    await writeWaitlist(entries);
+    const inserted = await addWaitlistEntry(entry);
 
-    return NextResponse.json({ message: "You're on the VerseCue waitlist!" });
-  } catch {
+    if (!inserted) {
+      return NextResponse.json(
+        {
+          message: "You're already on the VerseCue waitlist.",
+        },
+        { status: 200 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Unable to join the waitlist." },
+      {
+        message: "You're on the VerseCue waitlist!",
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Waitlist submission error:", error);
+
+    return NextResponse.json(
+      {
+        error: "Unable to join the waitlist. Please try again.",
+      },
       { status: 500 }
     );
   }
