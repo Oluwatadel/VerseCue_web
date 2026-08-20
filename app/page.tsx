@@ -5,6 +5,7 @@ import HowItWorks from "./components/HowItWorks";
 import Waitlist from "./components/Waitlist";
 import Support from "./components/Support";
 import Footer from "./components/Footer";
+import VideoShowcase from "./components/VideoShowcase";
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
+        <VideoShowcase />
         <Features />
         <HowItWorks />
         <Waitlist />
