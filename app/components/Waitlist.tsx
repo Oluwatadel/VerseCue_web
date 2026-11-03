@@ -10,16 +10,22 @@ export default function Waitlist() {
     e.preventDefault();
     setLoading(true);
     setStatus("");
-    const payload = Object.fromEntries(new FormData(e.currentTarget).entries());
-    const r = await fetch("/api/waitlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const d = await r.json();
-    setStatus(d.message || d.error || "Something went wrong.");
-    setLoading(false);
-    if (r.ok) e.currentTarget.reset();
+    const form = e.currentTarget;
+    const payload = Object.fromEntries(new FormData(form).entries());
+    try {
+      const response = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      setStatus(data.message || data.error || "Something went wrong.");
+      if (response.ok) form.reset();
+    } catch {
+      setStatus("We could not connect. Please check your internet connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -32,12 +38,12 @@ export default function Waitlist() {
           Join the VerseCue waitlist
         </h2>
         <p className="mt-3 text-slate-300">
-          Be among the first churches and media teams to try VerseCue.
+          For churches and media teams in Nigeria and internationally. Register your interest in the Windows desktop release and receive early-access updates.
         </p>
 
         <form onSubmit={join} className="mt-8 grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="wl-name" className="sr-only">
+            <label htmlFor="wl-name" className="mb-2 block text-sm text-slate-200">
               Your name
             </label>
             <input
@@ -50,7 +56,7 @@ export default function Waitlist() {
             />
           </div>
           <div>
-            <label htmlFor="wl-email" className="sr-only">
+            <label htmlFor="wl-email" className="mb-2 block text-sm text-slate-200">
               Email address
             </label>
             <input
@@ -64,7 +70,7 @@ export default function Waitlist() {
             />
           </div>
           <div>
-            <label htmlFor="wl-church" className="sr-only">
+            <label htmlFor="wl-church" className="mb-2 block text-sm text-slate-200">
               Church / organization
             </label>
             <input
@@ -76,7 +82,7 @@ export default function Waitlist() {
             />
           </div>
           <div>
-            <label htmlFor="wl-role" className="sr-only">
+            <label htmlFor="wl-role" className="mb-2 block text-sm text-slate-200">
               Your role
             </label>
             <select id="wl-role" className="input" name="role" defaultValue="">
@@ -90,6 +96,7 @@ export default function Waitlist() {
               <option>Other</option>
             </select>
           </div>
+          <p className="text-sm leading-6 text-slate-300 sm:col-span-2">Release availability, final requirements and pricing will be shared when confirmed. Signing up does not purchase a licence.</p>
           <button disabled={loading} className="btn-primary sm:col-span-2">
             {loading ? "Joining..." : "Join the Waitlist"}
           </button>

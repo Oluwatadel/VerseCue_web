@@ -42,17 +42,18 @@ export default function VideoShowcase() {
           See it in action
         </p>
         <h2 className="mt-3 text-3xl font-bold sm:text-4xl">
-          VerseCue, in 15 seconds
+          The original VerseCue concept trailer
         </h2>
       </div>
 
+      <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-slate-400">An earlier concept film. See the desktop screenshots for the current interface and workflow.</p>
       <div className="glass mx-auto mt-10 max-w-4xl rounded-3xl p-3 sm:p-4">
         <div className="group relative overflow-hidden rounded-2xl bg-black">
           <video
             ref={videoRef}
             className="aspect-video w-full"
             src="/video/versecue-advert.mp4"
-            poster="/video/versecue-poster.jpg"
+            poster="/screenshots/theme-preview.png"
             muted
             loop
             playsInline

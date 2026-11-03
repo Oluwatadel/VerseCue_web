@@ -62,7 +62,7 @@ export async function verifySessionToken(
   token: string | undefined | null,
   secret: string
 ): Promise<boolean> {
-  if (!token) return false;
+  if (!token || token.length > 2048 || token.split(".").length !== 2) return false;
   const [payloadB64, signatureB64] = token.split(".");
   if (!payloadB64 || !signatureB64) return false;
 

@@ -1,45 +1,21 @@
-const FEATURES = [
-  {
-    icon: "🎙️",
-    title: "Listen & Transcribe",
-    description: "Follow the preacher's words in real time.",
-  },
-  {
-    icon: "🔎",
-    title: "Find Scripture",
-    description:
-      "Detect references or discover passages from paraphrased Scripture.",
-  },
-  {
-    icon: "🖥️",
-    title: "Approve & Display",
-    description:
-      "Preview, choose a translation, and decide what reaches the projector.",
-  },
-];
+import { FEATURES } from "../../lib/product";
 
-export default function Features() {
+export default function Features({ compact = false }: { compact?: boolean }) {
   return (
-    <section id="features" className="container-x py-20 sm:py-24">
-      <p className="text-sm font-semibold uppercase tracking-widest text-blue-400">
-        Built for the booth
-      </p>
-      <h2 className="mt-3 text-3xl font-bold sm:text-4xl">
-        Less searching. More serving.
-      </h2>
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 md:grid-cols-3">
-        {FEATURES.map((feature) => (
-          <div key={feature.title} className="glass rounded-2xl p-6 sm:p-7">
-            <div className="text-3xl" aria-hidden="true">
-              {feature.icon}
-            </div>
-            <h3 className="mt-5 text-xl font-bold">{feature.title}</h3>
-            <p className="mt-3 leading-7 text-slate-400">
-              {feature.description}
-            </p>
-          </div>
+    <section id="features" className="container-x py-16 sm:py-20" aria-labelledby="features-title">
+      <p className="eyebrow">Built for the booth</p>
+      <h2 id="features-title" className="mt-3 text-3xl font-bold sm:text-4xl">One desktop workspace for the service.</h2>
+      <p className="mt-4 max-w-3xl leading-7 text-slate-300">From the first spoken reference to the next song, slide or live source: prepare the content, preview your choices, and decide what the congregation sees.</p>
+      <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {(compact ? FEATURES.slice(0, 6) : FEATURES).map((feature) => (
+          <article key={feature.title} className="glass rounded-2xl p-6">
+            <span className="text-2xl text-blue-200" aria-hidden="true">{feature.icon}</span>
+            <h3 className="mt-4 text-lg font-semibold">{feature.title}</h3>
+            <p className="mt-3 text-sm leading-7 text-slate-300">{feature.description}</p>
+          </article>
         ))}
       </div>
+      {compact && <a href="/features" className="btn-secondary mt-7 inline-flex">Explore all features →</a>}
     </section>
   );
 }

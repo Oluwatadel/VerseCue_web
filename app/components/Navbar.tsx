@@ -1,23 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 
 const NAV_LINKS = [
-  { href: "#how", label: "How it works" },
-  { href: "#features", label: "Features" },
-  { href: "#waitlist", label: "Waitlist" },
-  { href: "#support", label: "Support" },
+  { href: "/features", label: "Features" },
+  { href: "/download", label: "Download" },
+  { href: "/docs", label: "Guides" },
+  { href: "/support", label: "Support" },
+  { href: "/about", label: "About" },
+  { href: "/account", label: "Account" },
 ];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/5 bg-[#030b1c]/80 backdrop-blur-xl">
       <nav className="container-x flex items-center justify-between py-4">
         <a
-          href="#"
+          href="/"
           className="flex items-center"
           aria-label="VerseCue home"
           onClick={() => setOpen(false)}
@@ -25,12 +29,13 @@ export default function Navbar() {
           <Logo iconSize={34} />
         </a>
 
-        <div className="hidden items-center gap-7 text-sm text-slate-300 md:flex">
+        <div className="hidden items-center gap-7 text-sm text-slate-300 lg:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="transition hover:text-white"
+              aria-current={pathname === link.href ? "page" : undefined}
+              className={pathname === link.href ? "text-blue-200" : "transition hover:text-white"}
             >
               {link.label}
             </a>
@@ -38,8 +43,8 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <a href="#waitlist" className="btn-primary hidden text-sm sm:inline-flex">
-            Join Waitlist
+          <a href="/download" className="btn-primary hidden text-sm sm:inline-flex">
+            Download for Windows
           </a>
           <button
             type="button"
@@ -47,7 +52,7 @@ export default function Navbar() {
             aria-controls="mobile-menu"
             aria-label={open ? "Close menu" : "Open menu"}
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white lg:hidden"
           >
             <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
             {open ? (
@@ -64,7 +69,7 @@ export default function Navbar() {
       </nav>
 
       {open && (
-        <div id="mobile-menu" className="border-t border-white/5 md:hidden">
+        <div id="mobile-menu" className="border-t border-white/5 lg:hidden">
           <div className="container-x flex flex-col gap-1 py-4 text-slate-300">
             {NAV_LINKS.map((link) => (
               <a
@@ -77,11 +82,11 @@ export default function Navbar() {
               </a>
             ))}
             <a
-              href="#waitlist"
+              href="/download"
               onClick={() => setOpen(false)}
               className="btn-primary mt-2 justify-center text-center sm:hidden"
             >
-              Join Waitlist
+              Download for Windows
             </a>
           </div>
         </div>

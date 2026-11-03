@@ -31,7 +31,8 @@ function LoginForm() {
       return;
     }
 
-    const next = searchParams.get("next") || "/admin";
+    const requested = searchParams.get("next") || "/admin/licenses";
+    const next = requested.startsWith("/admin/") && !requested.includes("\\") ? requested : "/admin/licenses";
     router.push(next);
     router.refresh();
   }
@@ -44,7 +45,7 @@ function LoginForm() {
         </div>
         <h1 className="mt-6 text-center text-xl font-bold">Admin Sign In</h1>
         <p className="mt-2 text-center text-sm text-slate-400">
-          Waitlist dashboard access
+          Account and licence administration
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">

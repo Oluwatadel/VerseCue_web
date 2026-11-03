@@ -1,40 +1,12 @@
 import Image from "next/image";
 
-/**
- * Primary VerseCue brand mark: icon + wordmark, laid out horizontally.
- * Two separate image assets (icon / wordmark) are used instead of the
- * single combined lockup so each can be sized independently and stay
- * crisp at small navbar heights.
- */
-export function Logo({
-  className = "",
-  iconSize = 36,
-}: {
-  className?: string;
-  iconSize?: number;
-}) {
-  // Source aspect ratios: icon 777x560, wordmark 941x131.
-  const wordmarkHeight = iconSize * 0.62;
-  const wordmarkWidth = wordmarkHeight * (941 / 131);
-
+/** Use the supplied complete logo consistently across public and admin pages. */
+export function Logo({ className = "", iconSize = 36 }: { className?: string; iconSize?: number }) {
+  const size = Math.max(64, iconSize * 2);
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
-      <Image
-        src="/versecue-icon.png"
-        alt=""
-        width={iconSize * (777 / 560)}
-        height={iconSize}
-        priority
-        className="shrink-0"
-      />
-      <Image
-        src="/versecue-wordmark-dark.png"
-        alt="VerseCue"
-        width={wordmarkWidth}
-        height={wordmarkHeight}
-        priority
-        className="shrink-0"
-      />
+    <span className={`inline-flex shrink-0 overflow-hidden rounded-xl bg-white ${className}`}>
+      <Image src="/versecue-logo.png" alt="VerseCue" width={size} height={size}
+        priority className="h-auto shrink-0 object-contain" />
     </span>
   );
 }

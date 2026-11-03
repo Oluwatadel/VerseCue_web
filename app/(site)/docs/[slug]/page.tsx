@@ -1,0 +1,7 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { GUIDES } from "../../../../lib/guides";
+export function generateStaticParams() { return GUIDES.map(({ slug }) => ({ slug })); }
+export function generateMetadata({ params }: { params: { slug: string } }): Metadata { const guide = GUIDES.find((item) => item.slug === params.slug); return { title: guide ? `${guide.title} | VerseCue guides` : "Guide not found | VerseCue", description: guide?.description }; }
+export default function GuidePage({ params }: { params: { slug: string } }) { const guide = GUIDES.find((item) => item.slug === params.slug); if (!guide) notFound(); return <article className="container-x py-14 sm:py-20"><Link href="/docs" className="text-sm text-blue-200">← All guides</Link><h1 className="page-title">{guide.title}</h1><p className="page-intro">{guide.description}</p><div className="mt-9 max-w-4xl space-y-6">{guide.sections.map((section) => <section key={section.title} className="glass rounded-2xl p-6 sm:p-8"><h2 className="text-2xl font-semibold">{section.title}</h2><ol className="mt-5 list-decimal space-y-4 pl-5 text-slate-200">{section.steps.map((step) => <li key={step} className="pl-2 leading-7">{step}</li>)}</ol></section>)}</div><div className="mt-8 flex flex-wrap gap-3"><Link href="/support" className="btn-secondary">Get more help</Link><Link href="/download" className="btn-primary">Downloads</Link></div></article>; }
