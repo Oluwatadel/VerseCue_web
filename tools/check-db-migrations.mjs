@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { PGlite } from "@electric-sql/pglite";
+import { loadMigrations, splitMigration } from "./migrate-db.mjs";
+
+const db = new PGlite();
+try {
+  const migrations = loadMigrations();
+  assert.deepEqual(migrations.map(m => m.statements.length), [7, 1]);
+  const apply = async () => {
+    await db.exec("BEGIN");
+    try {
+      for (const migration of migrations)
+        for (const statement of migration.statements) await db.exec(statement);
+      await db.exec("COMMIT");
+    } catch (error) { await db.exec("ROLLBACK"); throw error; }
+  };
+  await apply();
+  const id = randomUUID();
+  await db.query("INSERT INTO vc_licenses (id,owner_email,code_hash) VALUES ($1,$2,$3)", [id, "migration-test@example.invalid", randomUUID()]);
+  await apply();
+  const { rows } = await db.query("SELECT id,access_kind FROM vc_licenses");
+  assert.deepEqual(rows, [{ id, access_kind: "standard" }]);
+  await db.query("UPDATE vc_licenses SET access_kind='complimentary' WHERE id=$1", [id]);
+  await apply();
+  assert.equal((await db.query("SELECT access_kind FROM vc_licenses WHERE id=$1", [id])).rows[0].access_kind, "complimentary");
+  await assert.rejects(db.query("UPDATE vc_licenses SET access_kind='invalid' WHERE id=$1", [id]));
+  assert.equal(splitMigration("-- comment;\nSELECT 'it''s; quoted'; SELECT 2;").length, 2);
+  assert.throws(() => splitMigration("SELECT $$body;$$;"));
+  assert.throws(() => splitMigration("SELECT 'unterminated"));
+  console.log("PASS: Both migrations apply, preserve existing licences on rerun, retain complimentary grants and enforce valid access types.");
+  console.log("PASS: SQL splitting preserves quoted semicolons and rejects unsupported or incomplete syntax.");
+  console.log("All checks used a local temporary database. No Neon connection was made.");
+} finally { await db.close(); }

@@ -69,3 +69,23 @@ The desktop opens without account activation. Bible lookup, projection, songs, s
 ### Admin complimentary AI access
 
 At `/admin/licenses`, select **Complimentary AI access**, enter the recipient email, optionally set expiry, then click **Grant complimentary AI access**. Blank expiry grants ongoing entitlement; signed offline leases still renew normally. Existing active accounts receive the entitlement directly, retaining the registered computer. For new emails, privately share the single-use activation code so the recipient can create their AI account online. Blocked accounts must be unblocked first. Grants are labelled in the admin/user views and recorded as `grant-complimentary` audit events. Ordinary users cannot grant themselves complimentary access. Existing reset/revoke/offline-grace rules still apply. Apply the additive `db/002-complimentary-access.sql` migration before deploying this change.
+
+## Run database migrations from VS Code
+
+No PostgreSQL command-line installation is needed. Use Node.js 20.12 or newer.
+Open a terminal in this website folder, create `.env.local` and add your own
+Neon connection string as `DATABASE_URL`. The file is ignored by Git.
+An existing terminal `DATABASE_URL` takes precedence over `.env.local`.
+
+```powershell
+npm install
+npm run db:migrate:check
+npm run db:migrate
+```
+
+The dry run only checks the local migration statements; it does not connect to
+a database. The real command applies `001-licensing.sql` followed by
+`002-complimentary-access.sql` in one transaction. Both are additive and may
+be rerun without deleting accounts or licences. Connection strings and secret
+values are not printed. Deployment still requires configuring environment
+variables on your host; this command only sets up the selected database.

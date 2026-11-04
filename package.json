@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:licensing": "tsx tools/check-licensing.ts"
+    "test:licensing": "tsx tools/check-licensing.ts",
+    "db:migrate": "node tools/migrate-db.mjs",
+    "db:migrate:check": "node tools/migrate-db.mjs --dry-run",
+    "test:migrations": "node tools/check-db-migrations.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
