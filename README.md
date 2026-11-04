@@ -89,3 +89,12 @@ a database. The real command applies `001-licensing.sql` followed by
 be rerun without deleting accounts or licences. Connection strings and secret
 values are not printed. Deployment still requires configuring environment
 variables on your host; this command only sets up the selected database.
+
+### Diagnose account-service configuration
+
+Run `npm run config:check` from the website folder. It checks `.env.local`
+(or existing terminal variables) without printing secret values or connecting
+to a database. Replace placeholder `DATABASE_URL` text with your actual Neon
+PostgreSQL connection string, configure the admin and production signing/model
+keys, run `npm run db:migrate`, then restart the website. A hosted deployment
+needs the same variables in its hosting environment and a redeploy.

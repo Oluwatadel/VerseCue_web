@@ -4,9 +4,17 @@ import {generateKeyPairSync,randomBytes,sign,verify,privateDecrypt,constants} fr
 import {PGlite} from "@electric-sql/pglite";
 import {LicensingService} from "../lib/licensing-service";
 import {hash,LicenseError} from "../lib/licensing-security";
-import type {LicensingDb,Statement} from "../lib/licensing-db";
+import {licensingDb,type LicensingDb,type Statement} from "../lib/licensing-db";
 
 async function main(){
+ const previousUrl=process.env.DATABASE_URL;
+ try {
+  for(const value of [undefined,"YOUR_NEON_CONNECTION_STRING","https://example.invalid/database","postgresql://localhost"]) {
+   if(value===undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL=value;
+   assert.throws(()=>licensingDb(),(error:unknown)=>error instanceof LicenseError && error.status===503 && error.message.includes("DATABASE_URL") && !error.message.includes(String(value)));
+  }
+  console.log("PASS database configuration failures give actionable errors without exposing credentials");
+ } finally { if(previousUrl===undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL=previousUrl; }
  const pg=new PGlite(); await pg.exec(await readFile("db/001-licensing.sql","utf8")); await pg.exec(await readFile("db/002-complimentary-access.sql","utf8"));
  const db:LicensingDb={query:async(text,values=[]) => (await pg.query(text,values)).rows as any[],
  transaction:async(items:Statement[])=>pg.transaction(async(tx)=>{const rows:any[]=[];for(const item of items) rows.push((await tx.query(item.text,item.values||[])).rows);return rows;})};
