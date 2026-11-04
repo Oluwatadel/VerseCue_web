@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
-import { loadMigrations, splitMigration } from "./migrate-db.mjs";
+import { loadMigrations, splitMigration, validateDatabaseUrl, migrationFailure } from "./migrate-db.mjs";
 
+for (const value of ["secret-password-only", "YOUR_NEON_CONNECTION_STRING", "https://example.invalid", "psql 'postgresql://test:password@example.invalid/database'"]) {
+  assert.throws(() => validateDatabaseUrl(value), error => error.message.includes("full Neon connection string") && !error.message.includes(value));
+}
+assert.equal(validateDatabaseUrl(" postgresql://test:password@example.invalid/database "), "postgresql://test:password@example.invalid/database");
+const privateDetail = "postgresql://private:password@example.invalid/database";
+const networkError = migrationFailure({ message: privateDetail, cause: { code: "ENOTFOUND", message: privateDetail } });
+assert.match(networkError, /could not be resolved/);
+assert.ok(!networkError.includes(privateDetail));
+assert.match(migrationFailure({ code: "28P01", message: privateDetail }), /authentication failed/);
+assert.ok(!migrationFailure({ message: privateDetail }).includes(privateDetail));
+console.log("PASS: Invalid connection strings fail before connecting; database failures give credential-safe diagnostics.");
 const db = new PGlite();
 try {
   const migrations = loadMigrations();
