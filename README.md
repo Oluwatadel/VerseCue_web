@@ -32,7 +32,7 @@ The public website has no payment, donation, checkout or waitlist flow. The old 
 
 Copy `.env.example` to `.env.local` when configuring the site:
 
-- `NEXT_PUBLIC_WINDOWS_DOWNLOAD_URL`: add the official HTTPS Windows installer URL when ready. Without it, Downloads shows an explicitly disabled placeholder. No ZIP or installer was packaged by this update.
+- `WINDOWS_DOWNLOAD_URL`: add the official HTTPS Windows installer URL when ready. Without it, Downloads shows an explicitly disabled placeholder. No ZIP or installer was packaged by this update.
 - `NEXT_PUBLIC_SUPPORT_EMAIL`: official public support contact. Without it, the support page clearly says the contact channel has not been published.
 - `NEXT_PUBLIC_SITE_URL`: canonical URL for page metadata and the sitemap.
 
@@ -98,3 +98,31 @@ to a database. Replace placeholder `DATABASE_URL` text with your actual Neon
 PostgreSQL connection string, configure the admin and production signing/model
 keys, run `npm run db:migrate`, then restart the website. A hosted deployment
 needs the same variables in its hosting environment and a redeploy.
+
+## Free accounts, downloads and AI
+
+Apply migration `003-free-accounts.sql` (included in `npm run db:migrate`).
+Create a free account at `/account/register` with email, organisation name and
+password; activation codes and AI signing keys are not needed for registration.
+Existing accounts can add their organisation name on `/account`. The download
+button uses `/api/download/windows`, which authenticates the website session,
+requires an organisation name and records a download request before redirecting.
+Set server-only `WINDOWS_DOWNLOAD_URL` when the installer is published. No installer
+has been created or uploaded. The download host itself must control access if
+shared direct links also need to be prevented.
+
+AI activation is a separate action on `/account`; it still requires configured
+production signing/model keys. `npm run config:activation` loads existing matching
+production key files from the sibling desktop `.security/production` folder into
+ignored `.env.local`; it never generates replacement keys or prints key values.
+Hosted environments require setting these values in their secret store and a
+restart/redeploy. The admin password and session secret remain separate settings.
+
+The protected desktop requires account sign-in before opening the free workspace.
+Saved free access is protected with Windows DPAPI and expires after 30 days;
+AI access uses a separate signed lease with the existing default 72-hour grace.
+A free session never contains model keys. Account and AI sign-ins must use the
+same email. AI revocation keeps free account and download access; blocking the
+account or resetting its computer invalidates account sessions. Debug builds
+retain the explicit development bypass. Rebuild the installer input to include
+this new sign-in flow; older installed builds do not change automatically.

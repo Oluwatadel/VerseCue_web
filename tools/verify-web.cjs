@@ -6,7 +6,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined });
   const base = process.env.VERSECUE_TEST_URL || "http://127.0.0.1:3087";
   const output = path.resolve("artifacts/web-review"); fs.mkdirSync(output, { recursive: true });
-  const routes = ["/", "/features", "/download", "/docs", "/support", "/about", "/releases", "/account/login", "/account/activate"];
+  const routes = ["/", "/features", "/download", "/docs", "/support", "/about", "/releases", "/account/login", "/account/register"];
   try {
     for (const width of [1440, 390, 320]) {
       const page = await browser.newPage({ viewport: { width, height: 950 }, reducedMotion: "reduce" });
@@ -47,7 +47,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       await page.locator("#workspace").getByRole("button", { name: "Live dashboard", exact: true }).click();
       await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(output, `homepage-${width}.png`), fullPage: true });
       await page.goto(base + "/download");
-      assert.equal(await page.getByRole("button", { name: "Windows installer coming soon", exact: true }).isDisabled(), true);
+      await page.getByRole("link", { name: "Create free account", exact: true }).waitFor();
       assert.equal(await page.getByRole("button", { name: "macOS coming soon", exact: true }).isDisabled(), true);
       assert.equal(await page.getByRole("button", { name: "Linux coming soon", exact: true }).isDisabled(), true);
       await page.goto(base + "/features"); assert.equal(await page.locator("#features article").count(), 12);
@@ -61,7 +61,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       await page.getByLabel("Steps to reproduce", { exact: true }).fill("Open Preferences and select a theme.");
       await page.getByRole("button", { name: "Create report", exact: true }).click();
       const report = await page.getByLabel("Your prepared report", { exact: true }).inputValue();
-      assert.match(report, /Example issue from a local browser test/); assert.match(report, /Parakeet/);
+      assert.match(report, /Example issue from a local browser test/); assert.match(report, /VerseCue Clarity/);
       await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
       await page.screenshot({ path: path.join(output, `support-report-${width}.png`), fullPage: true });
       const legacy = await page.goto(base + "/waitlist"); assert.equal(legacy.status(), 200); assert.ok(page.url().endsWith("/download"));
@@ -71,12 +71,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       await page.close();
     }
     const page = await browser.newPage();
-    await page.goto(base + "/account/activate");
-    await page.getByRole("heading", {name:"Unlock VerseCue AI."}).waitFor();
-    assert.equal(await page.getByLabel("Activation code",{exact:true}).count(),1);
-    assert.match(await page.locator("main").innerText(),/Bible lookup, projection, songs, slides and video for free/);
+    await page.goto(base + "/account/register");
+    await page.getByRole("heading", {name:"Create your account."}).waitFor();
+    assert.equal(await page.getByLabel("Activation code",{exact:true}).count(),0);
+    assert.equal(await page.getByLabel("Organisation name",{exact:true}).count(),1);
     await page.goto(base + "/download");
-    assert.match(await page.locator("main").innerText(),/work without activation/);
+    assert.match(await page.locator("main").innerText(),/email and organisation name/);
     const icon = await page.request.get(base + "/icon.png"); assert.equal(icon.status(), 200);
     const canonical = fs.readFileSync("public/versecue-logo.png"); assert.deepEqual(await icon.body(), canonical);
     assert.equal((await page.request.get(base + "/favicon.ico")).status(), 200);
@@ -84,7 +84,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     const sitemap = await page.request.get(base + "/sitemap.xml"); assert.equal(sitemap.status(), 200); assert.match(await sitemap.text(), /docs\/appearance-previews/);
     assert.equal((await page.request.get(base + "/api/admin/waitlist")).status(), 401);
     assert.equal((await page.request.get(base + "/api/admin/licenses")).status(), 401);
-    assert.equal((await page.request.get(base + "/api/account")).status(), 503); // no database configured in this local check
+    assert.equal((await page.request.get(base + "/api/account")).status(), 401); // no database configured in this local check
     await page.goto(base + "/about");
     await page.getByRole("heading", {name:"Made for the pulpit and the media desk."}).waitFor();
     assert.match(await page.locator("main").innerText(),/preachers and church media teams/);

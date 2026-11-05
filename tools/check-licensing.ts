@@ -15,7 +15,7 @@ async function main(){
   }
   console.log("PASS database configuration failures give actionable errors without exposing credentials");
  } finally { if(previousUrl===undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL=previousUrl; }
- const pg=new PGlite(); await pg.exec(await readFile("db/001-licensing.sql","utf8")); await pg.exec(await readFile("db/002-complimentary-access.sql","utf8"));
+ const pg=new PGlite(); await pg.exec(await readFile("db/001-licensing.sql","utf8")); await pg.exec(await readFile("db/002-complimentary-access.sql","utf8"));await pg.exec(await readFile("db/003-free-accounts.sql","utf8"));
  const db:LicensingDb={query:async(text,values=[]) => (await pg.query(text,values)).rows as any[],
  transaction:async(items:Statement[])=>pg.transaction(async(tx)=>{const rows:any[]=[];for(const item of items) rows.push((await tx.query(item.text,item.values||[])).rows);return rows;})};
  const issuer=generateKeyPairSync("rsa",{modulusLength:3072}); const model=randomBytes(32);
@@ -58,7 +58,7 @@ async function main(){
  ok(attempts.filter(r=>r.status==="fulfilled").length===1,"simultaneous activation has exactly one winner");
  ok((await db.query("SELECT * FROM vc_accounts WHERE email=$1",[raceEmail])).length===1,"simultaneous activation creates one account");
  const onlineEmail="website@example.org",onlineGrant=await service.issue(onlineEmail);
- const online=await service.webRegister({email:onlineEmail,password,activationCode:onlineGrant.code});
+ const online=await service.webRegister({email:onlineEmail,password,organisationName:"Test Church"});await service.webActivate(online.session,onlineGrant.code);
  const onlineAccount=await service.account(online.session);
  ok(!onlineAccount.device_id && onlineAccount.licenses.length===1,"website activation grants AI without binding the browser computer");
  await reject(async()=>service.refresh(online.session,await proof(a,onlineEmail)),409,"website activation session cannot retrieve model keys");
@@ -76,12 +76,12 @@ async function main(){
  const movedOnline=await service.login({email:onlineEmail,password,device:await proof(b,onlineEmail)});
  ok((await service.account(movedOnline.session)).device_id===b.id,"replacement computer claims website activation after admin reset");
  const contestEmail="desktop-race@example.org",contestGrant=await service.issue(contestEmail);
- await service.webRegister({email:contestEmail,password,activationCode:contestGrant.code});
+ const contestWeb=await service.webRegister({email:contestEmail,password,organisationName:"Test Church"});await service.webActivate(contestWeb.session,contestGrant.code);
  const contest=await Promise.allSettled([a,b].map(async c=>service.login({email:contestEmail,password,device:await proof(c,contestEmail)})));
  ok(contest.filter(r=>r.status==="fulfilled").length===1,"two computers racing for one website activation have one winner");
  const freeEmail="complimentary@example.org",freeGrant=await service.grantFree(freeEmail);
  ok(freeGrant.complimentary && !freeGrant.attached && !!freeGrant.code,"new recipient gets complimentary registration code");
- const freeWeb=await service.webRegister({email:freeEmail,password,activationCode:freeGrant.code});
+ const freeWeb=await service.webRegister({email:freeEmail,password,organisationName:"Test Church"});await service.webActivate(freeWeb.session,freeGrant.code);
  const freeDesktop=await service.login({email:freeEmail,password,device:await proof(a,freeEmail)});
  const freeAccount=await service.account(freeDesktop.session);
  ok(freeAccount.licenses[0].access_kind==="complimentary" && freeAccount.licenses[0].expires_at===null,"complimentary AI grants ongoing entitlement by default");
@@ -96,6 +96,40 @@ async function main(){
  ok((await db.query("SELECT * FROM vc_license_audit WHERE action='grant-complimentary'")).length===2,"complimentary grants are recorded in admin audit");
  await reject(()=>service.grantFree("expired-grant@example.org","2000-01-01"),400,"complimentary grant rejects past expiry");
  // Test-only interoperability fixture. Private keys are confined to ignored artifacts.
+ const noIssuer=new LicensingService(db,{signingKey:"",modelKey:"",modelKeyId:""});
+ const basicEmail="free-registration@example.org";
+ await reject(()=>noIssuer.webRegister({email:basicEmail,password,organisationName:""}),400,"free registration requires organisation name");
+ const basic=await noIssuer.webRegister({email:basicEmail,password,organisationName:"Community Church"});
+ let basicAccount=await noIssuer.account(basic.session);
+ ok(basicAccount.organisation_name==="Community Church" && basicAccount.licenses.length===0 && !basicAccount.device_id,"free registration stores organisation without activation or device binding");
+ await reject(()=>noIssuer.webRegister({email:basicEmail,password,organisationName:"Other Church"}),409,"duplicate free registration requires sign-in");
+ await reject(()=>noIssuer.webActivate(basic.session,"invalid"),503,"AI signing configuration is still required for AI activation");
+ await reject(()=>noIssuer.recordDownload("invalid"),401,"downloads require a valid account session");
+ await noIssuer.recordDownload(basic.session);
+ ok((await db.query("SELECT * FROM vc_downloads WHERE account_id=$1",[basicAccount.id])).length===1,"authenticated download is recorded against email and organisation account");
+ const basicDesktop=await noIssuer.freeDesktopLogin({email:basicEmail,password,device:await proof(a,basicEmail)});
+ ok(!("lease" in basicDesktop) && basicDesktop.deviceId===a.id,"free desktop login binds one computer without signing keys or model keys");
+ await reject(async()=>noIssuer.freeDesktopLogin({email:basicEmail,password,device:await proof(b,basicEmail)}),409,"free account cannot jump to another computer");
+ await reject(()=>noIssuer.recordDownload(basicDesktop.session),401,"desktop account token cannot impersonate website download session");
+ ok((await noIssuer.freeDesktopRefresh(basicDesktop.session,await proof(a,basicEmail))).email===basicEmail,"free desktop session refresh works without AI configuration");
+ await reject(async()=>service.refresh(basicDesktop.session,await proof(a,basicEmail)),409,"free desktop session cannot obtain an AI model key");
+ await reject(async()=>noIssuer.freeDesktopRefresh(basic.session,await proof(a,basicEmail)),409,"website session cannot impersonate free desktop session");
+ const basicGrant=await service.grantFree(basicEmail);
+ const basicAi=await service.login({email:basicEmail,password,device:await proof(a,basicEmail)});
+ ok(!!basicAi.lease,"registered free account can later receive complimentary AI on its bound computer");
+ await service.adminAction("revoke",basicGrant.id);
+ await reject(()=>service.account(basicAi.session),401,"revoking AI removes AI sessions");
+ ok((await noIssuer.account(basic.session)).email===basicEmail && (await noIssuer.freeDesktopRefresh(basicDesktop.session,await proof(a,basicEmail))).email===basicEmail,"AI revocation preserves free desktop and website access");
+ await service.adminAction("reset-device",basicAccount.id);
+ await reject(()=>noIssuer.account(basicDesktop.session),401,"computer reset invalidates old free desktop sessions");
+ const basicMoved=await noIssuer.freeDesktopLogin({email:basicEmail,password,device:await proof(b,basicEmail)});
+ ok(basicMoved.deviceId===b.id,"admin reset permits free account on a replacement computer");
+ await service.adminAction("block",basicAccount.id);
+ await reject(()=>noIssuer.account(basicMoved.session),401,"blocked accounts lose free desktop access");
+ const raceBasicEmail="free-device-race@example.org";
+ await noIssuer.webRegister({email:raceBasicEmail,password,organisationName:"Race Test Church"});
+ const freeRace=await Promise.allSettled([a,b].map(async c=>noIssuer.freeDesktopLogin({email:raceBasicEmail,password,device:await proof(c,raceBasicEmail)})));
+ ok(freeRace.filter(result=>result.status==="fulfilled").length===1,"two computers racing for free account binding have exactly one winner");
  await mkdir("artifacts/licensing",{recursive:true});await writeFile("artifacts/licensing/fixture.json",JSON.stringify({lease:first.lease,publicKey:issuer.publicKey.export({type:"spki",format:"pem"}),deviceId:a.id,email,devicePrivateKey:a.key.privateKey.export({type:"pkcs8",format:"pem"}),modelKey:model.toString("base64")}));
  await pg.close();console.log(`${count} licensing checks passed`);
 }

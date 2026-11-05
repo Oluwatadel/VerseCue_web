@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { neon } from "@neondatabase/serverless";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const files = ["001-licensing.sql", "002-complimentary-access.sql"];
+const files = ["001-licensing.sql", "002-complimentary-access.sql", "003-free-accounts.sql"];
 
 // These migrations contain ordinary DDL. Refuse advanced SQL bodies rather
 // than silently splitting statements inside a function or quoted identifier.
@@ -67,7 +67,7 @@ export function migrationFailure(error) {
     if (details[cause.code]) return `Migration failed. ${details[cause.code]}`;
   }
   const code = typeof error?.code === "string" && /^[0-9A-Z]{5}$/.test(error.code) ? ` (PostgreSQL ${error.code})` : "";
-  return `Migration failed${code}. Check DATABASE_URL, database permissions and network access. Both migrations run in one transaction; you can retry this additive setup.`;
+  return `Migration failed${code}. Check DATABASE_URL, database permissions and network access. All migrations run in one transaction; you can retry this additive setup.`;
 }
 
 async function main() {
@@ -90,14 +90,14 @@ async function main() {
   console.log("Applying licensing migrations to the database configured by DATABASE_URL...");
   try {
     const sql = neon(databaseUrl);
-    // Apply both additive, repeatable migrations atomically and in order.
+    // Apply the additive, repeatable migrations atomically and in order.
     await sql.transaction(migrations.flatMap(migration => migration.statements.map(statement => sql.query(statement))));
   } catch (error) {
     // Driver errors can include connection details. Print a safe diagnostic only.
     throw new Error(migrationFailure(error));
   }
   for (const migration of migrations) console.log(`Applied ${migration.name}`);
-  console.log("Done. Account, licensing and complimentary-access tables/columns are ready.");
+  console.log("Done. Account, organisation, download and licensing tables/columns are ready.");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

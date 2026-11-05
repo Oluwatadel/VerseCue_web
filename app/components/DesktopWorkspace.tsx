@@ -8,7 +8,7 @@ const VIEWS = [
   { label: "Theme preview", src: "/screenshots/theme-preview.png", width: 1500, height: 900, description: "Compare a pending theme beside Preferences. Save applies it; Discard keeps the active theme." },
   { label: "Verse backgrounds", src: "/screenshots/background-preview.png", width: 900, height: 700, description: "Inspect the background behind verse text and adjust dimming before changing the live output." },
   { label: "Motion screensavers", src: "/screenshots/screensaver-preview.png", width: 900, height: 700, description: "See the selected screensaver without verse text. In the desktop app, moving media previews silently on repeat." },
-  { label: "Speech models", src: "/screenshots/speech-models.png", width: 900, height: 700, description: "Parakeet is bundled. Choose an optional model from the dropdown to download it, then Save to activate it." },
+  { label: "Speech models", src: "/screenshots/speech-models.png", width: 900, height: 700, description: "VerseCue Clarity is bundled. Choose an optional model from the dropdown to download it, then Save to activate it." },
 ];
 
 export default function DesktopWorkspace() {

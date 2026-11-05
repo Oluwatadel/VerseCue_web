@@ -1,0 +1,8 @@
+"use client";
+import Link from "next/link";
+import {useEffect,useState} from "react";
+export function DownloadAccess({available}:{available:boolean}){
+ const[state,setState]=useState<"loading"|"guest"|"ready"|"profile"|"error">("loading");
+ useEffect(()=>{let mounted=true;fetch('/api/account',{cache:'no-store'}).then(async response=>{if(response.status===401){if(mounted)setState('guest');return;}if(!response.ok)throw new Error();const data=await response.json();if(mounted)setState(data.account.organisationName?.trim()?'ready':'profile');}).catch(()=>{if(mounted)setState('error');});return()=>{mounted=false;};},[]);
+ return <div className="mt-7">{state==='loading'?<p role="status" className="text-sm text-slate-300">Checking account…</p>:state==='ready'?(available?<a href="/api/download/windows" className="btn-primary inline-flex">Download Windows installer</a>:<button disabled className="btn-primary">Windows installer coming soon</button>):state==='profile'?<Link href="/account" className="btn-primary inline-flex">Add your organisation to download</Link>:<><Link href="/account/register?next=/download" className="btn-primary inline-flex">Create free account</Link><Link href="/account/login?next=/download" className="mt-3 block text-sm text-blue-200 underline">Already registered? Sign in</Link>{state==='error'&&<p role="alert" className="mt-3 text-sm text-red-200">Account service is temporarily unavailable. Please try again.</p>}</>}<p className="mt-4 text-sm leading-6 text-slate-400">{available?'A free account with your email and organisation name is required to download.':'The Windows installer has not been published yet. You can create your free account now.'}</p></div>;
+}

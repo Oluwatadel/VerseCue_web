@@ -10,7 +10,8 @@
     "db:migrate": "node tools/migrate-db.mjs",
     "db:migrate:check": "node tools/migrate-db.mjs --dry-run",
     "test:migrations": "node tools/check-db-migrations.mjs",
-    "config:check": "node tools/check-configuration.mjs"
+    "config:check": "node tools/check-configuration.mjs",
+    "config:activation": "node tools/configure-activation.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

@@ -79,22 +79,46 @@ export class LicensingService {
   if(!license) throw new LicenseError(403,"A valid activation code is required for this account and computer.");
   return this.desktopResult({...account,license_id:license.id,expires_at:license.expires_at},d);
  }
+ private organisation(value: unknown) {
+  const name=String(value||'').trim();
+  if(name.length<2 || name.length>160 || /[\x00-\x1f]/.test(name)) throw new LicenseError(400,"Enter an organisation name between 2 and 160 characters.");
+  return name;
+ }
  async webRegister(input: Record<string,any>) {
-  this.configured();
-  const email=normalizeEmail(input.email);checkEmail(email);await this.rate("register-global",50);await this.rate("web-register:"+email,5);
-  const code=String(input.activationCode||"").replace(/[^a-z0-9]/gi,"").toUpperCase();
-  if(!code)throw new LicenseError(400,"Enter the activation code supplied by your administrator.");
+  const email=normalizeEmail(input.email);checkEmail(email);
+  const organisation=this.organisation(input.organisationName);
+  await this.rate("register-global",50);await this.rate("web-register:"+email,5);
   const passwordHash=await hashPassword(String(input.password||""));
-  const rows=await this.db.query(`WITH grant_row AS (
-   SELECT id FROM vc_licenses WHERE owner_email=$1 AND code_hash=$2 AND status='active' AND account_id IS NULL AND device_id IS NULL
-   AND (expires_at IS NULL OR expires_at>now()) FOR UPDATE
-  ), created AS (
-   INSERT INTO vc_accounts(id,email,password_hash) SELECT $3,$1,$4 FROM grant_row ON CONFLICT(email) DO NOTHING RETURNING *
-  ), claimed AS (
-   UPDATE vc_licenses l SET account_id=a.id,activated_at=now() FROM created a,grant_row g WHERE l.id=g.id RETURNING l.account_id
-  ) SELECT a.id,a.email FROM created a JOIN claimed l ON l.account_id=a.id`,[email,hash(code),randomUUID(),passwordHash]);
-  if(!rows.length)throw new LicenseError(409,"Check the email and code. If you already have an account, sign in and activate from your account page.");
+  const rows=await this.db.query(`INSERT INTO vc_accounts(id,email,password_hash,organisation_name)
+   VALUES($1,$2,$3,$4) ON CONFLICT(email) DO NOTHING RETURNING id,email,organisation_name`,[randomUUID(),email,passwordHash,organisation]);
+  if(!rows.length)throw new LicenseError(409,"This email already has an account. Sign in to continue.");
   return {session:await this.newSession(rows[0].id,null),account:rows[0]};
+ }
+ async updateProfile(token: string, organisationName: unknown) {
+  const account=await this.account(token);const organisation=this.organisation(organisationName);
+  await this.db.query("UPDATE vc_accounts SET organisation_name=$2 WHERE id=$1",[account.id,organisation]);
+  return {message:"Organisation saved."};
+ }
+ async recordDownload(token: string) {
+  const account=await this.account(token);
+  if(account.session_kind!=="web")throw new LicenseError(401,"Sign in on the website to download VerseCue.");
+  if(!account.organisation_name?.trim())throw new LicenseError(400,"Add your organisation name on your account page before downloading.");
+  await this.db.query("INSERT INTO vc_downloads(id,account_id) VALUES($1,$2)",[randomUUID(),account.id]);
+ }
+ async freeDesktopLogin(input: Record<string,any>) {
+  const account=await this.credentials(input.email,input.password);const d=await this.proof(input.device,account.email);
+  if(!account.organisation_name?.trim())throw new LicenseError(403,"Add your organisation name on the website before signing into VerseCue.");
+  const rows=await this.db.query(`UPDATE vc_accounts SET device_id=$2,device_public_key=$3,device_name=$4
+   WHERE id=$1 AND status='active' AND (device_id IS NULL OR (device_id=$2 AND device_public_key=$3))
+   RETURNING id,email,organisation_name`,[account.id,d.id,d.publicKey,d.name]);
+  if(!rows.length)throw new LicenseError(409,"This account is registered on another computer. Contact your administrator for a computer reset.");
+  return {session:await this.newSession(account.id,d.id,"free"),email:account.email,organisationName:account.organisation_name,deviceId:d.id,expiresAt:new Date(Date.now()+30*86400000).toISOString()};
+ }
+ async freeDesktopRefresh(token: string, value: unknown) {
+  const account=await this.account(token);const d=await this.proof(value,account.email);
+  if(account.session_kind!=="free" || account.session_device!==d.id || account.device_id!==d.id || account.device_public_key!==d.publicKey)
+   throw new LicenseError(409,"This account session does not belong to this computer. Sign in again.");
+  return {email:account.email,organisationName:account.organisation_name,deviceId:d.id,expiresAt:new Date(account.session_expires_at).toISOString()};
  }
  async webActivate(token: string,codeValue: unknown) {
   this.configured();
@@ -110,15 +134,15 @@ export class LicensingService {
  }
  async webLogin(email: unknown,password: unknown) {
   const account=await this.credentials(email,password);
-  return {session:await this.newSession(account.id,null),account:{email:account.email,id:account.id}};
+  return {session:await this.newSession(account.id,null),account:{email:account.email,id:account.id,organisationName:account.organisation_name}};
  }
- private async newSession(accountId: string,deviceId: string|null) {
+ private async newSession(accountId: string,deviceId: string|null,kind=deviceId?"ai":"web") {
   const token=randomBytes(32).toString("base64url");
-  await this.db.query("INSERT INTO vc_sessions(token_hash,account_id,device_id,expires_at) VALUES($1,$2,$3,now()+interval '30 days')",[hash(token),accountId,deviceId]);
+  await this.db.query("INSERT INTO vc_sessions(token_hash,account_id,device_id,kind,expires_at) VALUES($1,$2,$3,$4,now()+interval '30 days')",[hash(token),accountId,deviceId,kind]);
   return token;
  }
  async account(token: string): Promise<Row & {licenses: Row[]}> {
-  const rows=await this.db.query(`SELECT a.id,a.email,a.status,a.device_id,a.device_name,a.revision,s.device_id AS session_device
+  const rows=await this.db.query(`SELECT a.id,a.email,a.organisation_name,a.status,a.device_id,a.device_public_key,a.device_name,a.revision,s.device_id AS session_device,s.kind AS session_kind,s.expires_at AS session_expires_at
    FROM vc_sessions s JOIN vc_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.expires_at>now() AND a.status='active'`,[hash(token)]);
   if(!rows.length) throw new LicenseError(401,"Please sign in again.");
   const a=rows[0]; const licenses=await this.db.query("SELECT id,status,access_kind,expires_at,activated_at FROM vc_licenses WHERE account_id=$1 ORDER BY created_at DESC",[a.id]);
@@ -127,7 +151,7 @@ export class LicensingService {
  async refresh(token: string,value: unknown) {
   this.configured();
   const account=await this.account(token); const d=await this.proof(value,account.email);
-  if(account.session_device!==d.id || account.device_id!==d.id) throw new LicenseError(409,"This session does not belong to this computer.");
+  if(account.session_kind!=="ai" || account.session_device!==d.id || account.device_id!==d.id) throw new LicenseError(409,"This session does not belong to this computer.");
   const license=(await this.db.query("SELECT * FROM vc_licenses WHERE account_id=$1 AND device_id=$2 AND status='active' AND (expires_at IS NULL OR expires_at>now())",[account.id,d.id]))[0];
   if(!license) throw new LicenseError(403,"This activation is no longer valid. Contact your administrator.");
   return {lease:this.lease({...account,license_id:license.id,expires_at:license.expires_at},d),email:account.email};
@@ -171,11 +195,11 @@ export class LicensingService {
   const attached=complimentary && !!issued[1][0]?.account_id;
   return {id,code,email,complimentary,attached,message:complimentary
    ? attached?"Complimentary AI access granted. This user can sign in directly on their registered computer; no code redemption is needed."
-    :"Complimentary AI access granted. Share this code privately so the new user can create their AI account on the website."
+    :"Complimentary AI access granted. Ask the recipient to create a free account, then redeem this code on their account page."
    :"Activation code issued."};
  }
  async adminList() {
-  return {accounts:await this.db.query("SELECT id,email,status,device_name,device_id,created_at FROM vc_accounts ORDER BY created_at DESC LIMIT 500"),
+  return {accounts:await this.db.query("SELECT a.id,a.email,a.organisation_name,a.status,a.device_name,a.device_id,a.created_at,(SELECT count(*)::int FROM vc_downloads d WHERE d.account_id=a.id) AS downloads FROM vc_accounts a ORDER BY a.created_at DESC LIMIT 500"),
    licenses:await this.db.query("SELECT id,owner_email,account_id,device_id,status,access_kind,expires_at,activated_at,created_at FROM vc_licenses ORDER BY created_at DESC LIMIT 500")};
  }
  async adminAction(action: string,id: string) {
@@ -189,7 +213,7 @@ export class LicensingService {
    {text:"DELETE FROM vc_sessions WHERE account_id=$1",values:[id]},
   ] : action === "revoke" ? [
    {text:"UPDATE vc_licenses SET status='revoked' WHERE id=$1",values:[id]},
-   {text:"DELETE FROM vc_sessions WHERE account_id=(SELECT account_id FROM vc_licenses WHERE id=$1)",values:[id]},
+   {text:"DELETE FROM vc_sessions WHERE kind='ai' AND account_id=(SELECT account_id FROM vc_licenses WHERE id=$1)",values:[id]},
   ] : null;
   if(!statements) throw new LicenseError(400,"Unknown action.");
   await this.db.transaction([...statements,{text:"INSERT INTO vc_license_audit(id,action,subject) VALUES($1,$2,$3)",values:[randomUUID(),action,id]}]);
