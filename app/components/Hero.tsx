@@ -10,7 +10,7 @@ export default function Hero() {
         <p className="mt-4 max-w-xl leading-7 text-slate-400">Activate optional AI transcription and automatic verse detection when you need them. Preview, queue and choose what reaches the congregation.</p>
         <div className="mt-7 flex flex-wrap gap-3">
           <a href="/download" className="btn-primary">Download for Windows — free</a>
-          <a href="/account/activate" className="btn-secondary">Activate AI features</a>
+          <a href="/pricing" className="btn-secondary">Personal & organisation plans</a>
           <a href="/docs/getting-started" className="btn-secondary">Get started</a>
         </div>
         <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm text-blue-200" aria-label="Product highlights">

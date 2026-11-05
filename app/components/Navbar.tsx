@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 const NAV_LINKS = [
   { href: "/features", label: "Features" },
   { href: "/download", label: "Download" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/docs", label: "Guides" },
   { href: "/support", label: "Support" },
   { href: "/about", label: "About" },
@@ -29,7 +30,7 @@ export default function Navbar() {
           <Logo iconSize={34} />
         </a>
 
-        <div className="hidden items-center gap-7 text-sm text-slate-300 lg:flex">
+        <div className="hidden items-center gap-5 text-sm text-slate-300 lg:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}

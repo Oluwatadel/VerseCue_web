@@ -16,7 +16,7 @@ async function main(){const pg=new PGlite();let count=0;
  const check=(v:unknown,label:string)=>{assert.ok(v,label);console.log('PASS '+label);count++;};
  const reject=async(work:()=>Promise<unknown>,status:number,label:string)=>{await assert.rejects(work,(e:unknown)=>e instanceof LicenseError&&e.status===status);check(true,label);};
  try{
- for(const file of ['001-licensing.sql','002-complimentary-access.sql','003-free-accounts.sql','004-usage-analytics.sql','005-billing-email.sql','006-admin-organisations-support.sql','007-organisation-computers.sql'])await pg.exec(await readFile('db/'+file,'utf8'));
+ for(const file of ['001-licensing.sql','002-complimentary-access.sql','003-free-accounts.sql','004-usage-analytics.sql','005-billing-email.sql','006-admin-organisations-support.sql','007-organisation-computers.sql','008-webhook-idempotency.sql'])await pg.exec(await readFile('db/'+file,'utf8'));
  const db:LicensingDb={query:async(t,v=[]) => (await pg.query(t,v)).rows as any[],transaction:async(items:Statement[])=>pg.transaction(async tx=>{const r:any[]=[];for(const i of items)r.push((await tx.query(i.text,i.values||[])).rows);return r;})};
  const keys=generateKeyPairSync('rsa',{modulusLength:2048}),lic=new LicensingService(db,{signingKey:keys.privateKey.export({type:'pkcs8',format:'pem'}).toString(),modelKey:randomBytes(32).toString('base64'),modelKeyId:'org-test'}),orgs=new OrganisationService(db),support=new SupportService(db);
  const password='organisation-test-12345',email='member@example.invalid';const owner=await lic.webRegister({email,password,organisationName:'Same Self-Typed Church'}),other=await lic.webRegister({email:'other@example.invalid',password,organisationName:'Same Self-Typed Church'});
@@ -109,6 +109,10 @@ async function main(){const pg=new PGlite();let count=0;
  await billing.confirm(lateRef);check((await db.query("SELECT * FROM vc_support_requests WHERE subject='Computer-count payment review'")).length===1,'late payment retries do not duplicate the support review');
  await orgs.update(renewed.id,'Paid Team',true,'active',true,null);check(!!await organisationAccess(db,buyer.account.id),'admin complimentary grant survives a paid expiry');
  await orgs.removeMember(renewed.id,buyer.account.id);check(!await organisationAccess(db,buyer.account.id),'removing approved membership revokes organisation entitlement');
+ check((await orgs.accountSummary(other.account.id)).organisations.length===0,'account summary excludes unrelated organisations even when profile names match');
+ const memberSummary=(await orgs.accountSummary(invited.account.id)).organisations;
+ check(memberSummary.length===1&&!memberSummary[0].is_owner&&!('owner_account_id' in memberSummary[0])&&!('email' in memberSummary[0]),'approved members see only their organisation summary without owner or member email disclosure');
+ check((await orgs.accountSummary(buyer.account.id)).organisations.some(o=>o.id===renewed.id&&o.is_owner),'subscription owner retains access to its billing summary');
  console.log(`${count} organisation, email, support and pricing checks passed using an isolated local database.`);
  }finally{await pg.close();}}
 main().catch(e=>{console.error(e);process.exitCode=1;});

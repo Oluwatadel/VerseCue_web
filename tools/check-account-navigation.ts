@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {accountReturnPath} from '../lib/account-navigation';
+assert.equal(accountReturnPath('/account/upgrade?computers=2&plan=six-months'),'/account/upgrade?computers=2&plan=six-months');
+assert.equal(accountReturnPath('/account/upgrade?reference=VCfixture&computers=11&plan=annual'),'/account/upgrade?reference=VCfixture&computers=11&plan=annual');
+for(const value of ['https://evil.invalid','//evil.invalid','/account/upgrade/../support','/account/upgrade-malicious'])assert.equal(accountReturnPath(value),'/account');
+assert.equal(accountReturnPath('/account/upgrade?computers=10001&plan=invalid&next=https://evil.invalid'),'/account/upgrade');
+assert.equal(accountReturnPath('/account/upgrade?computers=-2&plan=monthly'),'/account/upgrade?plan=monthly');
+assert.equal(accountReturnPath('/account/profile'),'/account/profile');
+assert.equal(accountReturnPath('/account/organisation'),'/account/organisation');
+console.log('PASS: login preserves approved plan/PC selections and rejects external or invalid return destinations.');

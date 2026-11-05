@@ -13,7 +13,9 @@
     "config:check": "node tools/check-configuration.mjs",
     "config:activation": "node tools/configure-activation.mjs",
     "test:billing": "tsx tools/check-billing.ts",
-    "test:organisations": "tsx tools/check-organisations.ts"
+    "test:organisations": "tsx tools/check-organisations.ts",
+    "test:webhooks": "tsx tools/check-webhooks.ts",
+    "test:account-navigation": "tsx tools/check-account-navigation.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

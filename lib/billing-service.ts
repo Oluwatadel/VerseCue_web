@@ -5,16 +5,19 @@ import {LicenseError,hash,normalizeEmail} from "./licensing-security";
 import {BILLING_PLANS,quotePlan,siteOrigin} from "./billing-plans";
 import {Paystack} from "./paystack";
 import {EmailService} from "./email-service";
+export class ReversedPaymentError extends LicenseError {constructor(){super(409,"This payment was refunded or disputed. Contact support.");}}
 export class BillingService {
  constructor(private db:LicensingDb,private licensing:LicensingService,private provider=new Paystack(),private mail=new EmailService(db),private allowTestActivation=process.env.BILLING_ALLOW_TEST_ACTIVATION==='1'&&process.env.NODE_ENV!=='production'){}
  private async webAccount(token:string){const account=await this.licensing.account(token);if(account.session_kind!=="web")throw new LicenseError(401,"Sign in on the website to manage payments.");return account;}
  async state(token:string,computers=1){
   if(!quotePlan("monthly",computers))throw new LicenseError(400,"Choose between 1 and 10,000 computers.");
   const account=await this.webAccount(token);
-  return {plans:BILLING_PLANS.map(base=>({...quotePlan(base.id,computers)!,autoRenewAvailable:computers>1?this.provider.configured:/^PLN_[a-zA-Z0-9]+$/.test(process.env[base.env]||'')})),
+  let checkoutUnavailableReason=!this.provider.configured?'Online payments are not enabled on this website yet. Contact support for activation assistance.':this.provider.mode==='test'&&!this.allowTestActivation?'Live payments are not enabled yet. Your free account and existing AI access remain available.':'';
+  if(!checkoutUnavailableReason){try{this.licensing.requireActivationConfiguration();}catch{checkoutUnavailableReason='AI activation is being configured. Payment is paused so you are not charged before access can be issued. Contact support.';}}
+  return {checkoutUnavailableReason,account:{email:account.email,organisationName:account.organisation_name},plans:BILLING_PLANS.map(base=>({...quotePlan(base.id,computers)!,autoRenewAvailable:computers>1?this.provider.configured:/^PLN_[a-zA-Z0-9]+$/.test(process.env[base.env]||'')})),
    organisations:await this.db.query("SELECT id,name,device_limit,paid_expires_at FROM vc_organisations WHERE owner_account_id=$1",[account.id]),
-   checkoutAvailable:this.provider.configured&&(this.provider.mode==='live'||this.allowTestActivation),testMode:this.provider.mode==='test',
-   licenses:account.licenses,orders:await this.db.query("SELECT reference,plan_id,amount,status,created_at FROM vc_billing_orders WHERE account_id=$1 AND status IN ('pending','expired') ORDER BY created_at DESC LIMIT 10",[account.id]),payments:await this.db.query("SELECT reference,plan_id,months,amount,currency,mode,status,created_at FROM vc_payment_receipts WHERE account_id=$1 ORDER BY created_at DESC LIMIT 25",[account.id]),
+   checkoutAvailable:!checkoutUnavailableReason,testMode:this.provider.mode==='test',
+   licenses:account.licenses,orders:await this.db.query("SELECT reference,plan_id,computer_count,amount,status,created_at FROM vc_billing_orders WHERE account_id=$1 AND status IN ('pending','expired') ORDER BY created_at DESC LIMIT 10",[account.id]),payments:await this.db.query("SELECT reference,plan_id,months,amount,currency,mode,status,created_at FROM vc_payment_receipts WHERE account_id=$1 ORDER BY created_at DESC LIMIT 25",[account.id]),
    subscriptions:await this.db.query("SELECT code,status FROM vc_billing_subscriptions WHERE account_id=$1 ORDER BY created_at DESC",[account.id])};
  }
  async checkout(token:string,id:unknown,autoRenew:unknown,computers:unknown=1){
@@ -58,6 +61,15 @@ export class BillingService {
    if(error instanceof LicenseError)throw error;throw new LicenseError(503,"Could not prepare checkout. Please retry.");
   }
  }
+ async resume(token:string,value:unknown){
+  const account=await this.webAccount(token),reference=this.reference(value);
+  if(!this.provider.configured||this.provider.mode==='test'&&!this.allowTestActivation)throw new LicenseError(503,'Payment checkout is not configured yet.');
+  this.licensing.requireActivationConfiguration();
+  if(account.licenses.some(l=>l.status==='active'&&!l.expires_at))throw new LicenseError(409,'Your account already has ongoing AI access. No purchase is needed.');
+  const [order]=await this.db.query("SELECT authorization_url FROM vc_billing_orders WHERE reference=$1 AND account_id=$2 AND mode=$3 AND status='pending' AND created_at>now()-interval '1 hour'",[reference,account.id,this.provider.mode]);
+  if(!order?.authorization_url)throw new LicenseError(409,'This checkout is unavailable or expired. Choose a plan to start a new checkout.');
+  return {url:Paystack.checkoutUrl(order.authorization_url)};
+ }
  private async seatPlan(plan:NonNullable<ReturnType<typeof quotePlan>>){
   const [cached]=await this.db.query('SELECT plan_code FROM vc_paystack_seat_plans WHERE mode=$1 AND plan_id=$2 AND computer_count=$3 AND amount=$4',[this.provider.mode,plan.id,plan.computerCount,plan.amount]);
   if(cached)return cached.plan_code as string;
@@ -72,8 +84,8 @@ export class BillingService {
   let [order]=await this.db.query("SELECT o.*,a.email FROM vc_billing_orders o JOIN vc_accounts a ON a.id=o.account_id WHERE o.reference=$1",[reference]);
   if(token){const account=await this.webAccount(token);if(!order||order.account_id!==account.id)throw new LicenseError(404,"Payment was not found for this account.");}
   const previous=await this.db.query("SELECT p.*,a.email FROM vc_payment_receipts p JOIN vc_accounts a ON a.id=p.account_id WHERE reference=$1",[reference]);
-  if(previous[0]?.status==='review')return {message:'Payment received. Support must review a computer-count change before activation. Your existing access is retained.',credited:false};
-  if(previous[0]&&previous[0].status!=='paid')throw new LicenseError(409,"This payment was refunded or disputed. Contact support.");
+  if(previous[0]?.status==='review'){await this.reviewPayment(reference,previous[0]);return {message:'Payment received. Support must review a computer-count change before activation. Your existing access is retained.',credited:false};}
+  if(previous[0]&&previous[0].status!=='paid')throw new ReversedPaymentError();
   if(previous[0]){await this.receiptEmail(reference,previous[0]);return {message:'Payment verified. Return to VerseCue; AI access will activate automatically.',credited:false};}
   const verified=await this.provider.call('/transaction/verify/'+encodeURIComponent(reference));
   if(verified.status!=='success')throw new LicenseError(409,"Payment is not verified yet. Pending, abandoned and failed payments do not activate AI.");
@@ -96,52 +108,76 @@ export class BillingService {
   if(this.provider.mode==='test'&&!this.allowTestActivation)throw new LicenseError(503,"Test payments cannot activate live AI access.");
   if(order.organisation_id){
    const result=await this.db.transaction([
+    ...this.paymentGuard(reference),
     {text:'SELECT id FROM vc_organisations WHERE id=$1 FOR UPDATE',values:[order.organisation_id]},
     {text:`WITH receipt AS (INSERT INTO vc_payment_receipts(reference,transaction_id,account_id,plan_id,months,amount,currency,mode,computer_count,organisation_id,status)
      SELECT $1,$2,$3,$4,$5,$6,'NGN',$7,$8,o.id,
       CASE WHEN (o.paid_expires_at>now() AND o.device_limit<>$8) OR (SELECT count(*) FROM vc_organisation_devices WHERE organisation_id=o.id AND status='active')>$8 THEN 'review' ELSE 'paid' END
-     FROM vc_organisations o WHERE o.id=$9 ON CONFLICT(reference) DO NOTHING RETURNING status),
+     FROM vc_organisations o WHERE o.id=$9 AND NOT EXISTS(SELECT 1 FROM vc_payment_guards WHERE reference=$1 AND mode=$7 AND reversal_status IS NOT NULL) ON CONFLICT(reference) DO NOTHING RETURNING status),
      entitlement AS (UPDATE vc_organisations SET multi_device=true,device_limit=$8,paid_expires_at=GREATEST(COALESCE(paid_expires_at,now()),now())+make_interval(months=>$5::integer)
       WHERE id=$9 AND EXISTS(SELECT 1 FROM receipt WHERE status='paid') RETURNING id)
      SELECT status FROM receipt`,values:[reference,String(verified.id),order.account_id,order.plan_id,order.months,order.amount,order.mode,order.computer_count,order.organisation_id]},
-    {text:"UPDATE vc_billing_orders SET status='paid',customer_code=$2 WHERE reference=$1",values:[order.reference,customer.customer_code||null]}
+    {text:"UPDATE vc_billing_orders SET status='paid',customer_code=$2 WHERE reference=$1 AND EXISTS(SELECT 1 FROM vc_payment_receipts WHERE reference=$3 AND status IN ('paid','review'))",values:[order.reference,customer.customer_code||null,reference]}
    ]);
+   await this.rejectReversed(reference);
    const [receipt]=await this.db.query('SELECT status FROM vc_payment_receipts WHERE reference=$1',[reference]);
    if(receipt?.status==='review'){
-    await this.mail.queue('payment-review:'+reference,order.account_id,order.email,'VerseCue payment needs support review',`Payment ${reference} was received. A computer-count change needs review before activation. Existing access is retained. Contact ${siteOrigin()}/account/support.`);
-    await this.db.query(`INSERT INTO vc_support_requests(id,account_id,category,subject,description,priority)
-     SELECT $1,$2,'billing','Computer-count payment review',$3,'high' WHERE NOT EXISTS(SELECT 1 FROM vc_support_requests WHERE description=$3)`,[randomUUID(),order.account_id,'Verified payment requires computer-count review: '+reference]);
+    await this.reviewPayment(reference,order);
     return {message:'Payment received. Support must review a computer-count change before activation. Your existing access is retained.',credited:false};
    }
-   await this.receiptEmail(reference,order);return {message:'Payment verified. Organisation AI access is ready for the purchased computers. Return to VerseCue to activate.',credited:result[1].length>0};
+   await this.receiptEmail(reference,order);return {message:'Payment verified. Organisation AI access is ready for the purchased computers. Return to VerseCue to activate.',credited:result[3].length>0};
   }
   const credited=await this.db.transaction([
+   ...this.paymentGuard(reference),
+   {text:'SELECT id FROM vc_accounts WHERE id=$1 FOR UPDATE',values:[order.account_id]},
    {text:`WITH owner AS (SELECT * FROM vc_accounts WHERE id=$1 FOR UPDATE),
     receipt AS (INSERT INTO vc_payment_receipts(reference,transaction_id,account_id,plan_id,months,amount,currency,mode)
-     SELECT $2,$3,id,$4,$5,$6,'NGN',$7 FROM owner ON CONFLICT(reference) DO NOTHING RETURNING account_id),
+     SELECT $2,$3,id,$4,$5,$6,'NGN',$7 FROM owner WHERE NOT EXISTS(SELECT 1 FROM vc_payment_guards WHERE reference=$2 AND mode=$7 AND reversal_status IS NOT NULL) ON CONFLICT(reference) DO NOTHING RETURNING account_id),
     entitlement AS (INSERT INTO vc_licenses(id,owner_email,code_hash,account_id,device_id,status,expires_at,access_kind,activated_at)
      SELECT $8,a.email,$9,a.id,a.device_id,'active',now()+make_interval(months=>$5::integer),'standard',now() FROM owner a JOIN receipt r ON r.account_id=a.id
      ON CONFLICT(owner_email) WHERE status='active' DO UPDATE SET account_id=EXCLUDED.account_id,device_id=EXCLUDED.device_id,
       expires_at=CASE WHEN vc_licenses.expires_at IS NULL THEN NULL ELSE GREATEST(vc_licenses.expires_at,now())+make_interval(months=>$5::integer) END,
       activated_at=now(),access_kind=CASE WHEN vc_licenses.expires_at IS NULL THEN vc_licenses.access_kind ELSE 'standard' END RETURNING id)
     SELECT id FROM entitlement`,values:[order.account_id,reference,String(verified.id),order.plan_id,order.months,order.amount,order.mode,randomUUID(),hash(randomBytes(32).toString('hex'))]},
-   {text:"UPDATE vc_billing_orders SET status='paid',customer_code=$2 WHERE reference=$1",values:[order.reference,customer.customer_code||null]}
+   {text:"UPDATE vc_billing_orders SET status='paid',customer_code=$2 WHERE reference=$1 AND EXISTS(SELECT 1 FROM vc_payment_receipts WHERE reference=$3 AND status IN ('paid','review'))",values:[order.reference,customer.customer_code||null,reference]}
   ]);
+  await this.rejectReversed(reference);
   await this.receiptEmail(reference,order);
-  return {message:'Payment verified. Return to VerseCue; AI access will activate automatically.',credited:credited[0].length>0};
+  return {message:'Payment verified. Return to VerseCue; AI access will activate automatically.',credited:credited[3].length>0};
+ }
+ private paymentGuard(reference:string){return [
+  {text:'INSERT INTO vc_payment_guards(reference,mode) VALUES($1,$2) ON CONFLICT(reference,mode) DO NOTHING',values:[reference,this.provider.mode]},
+  {text:'SELECT reference FROM vc_payment_guards WHERE reference=$1 AND mode=$2 FOR UPDATE',values:[reference,this.provider.mode]}
+ ];}
+ private async rejectReversed(reference:string){const rows=await this.db.query('SELECT reference FROM vc_payment_guards WHERE reference=$1 AND mode=$2 AND reversal_status IS NOT NULL',[reference,this.provider.mode]);if(rows.length)throw new ReversedPaymentError();}
+ private async reviewPayment(reference:string,order:Row){
+  await this.mail.queue('payment-review:'+reference,order.account_id,order.email,'VerseCue payment needs support review',`Payment ${reference} was received. A computer-count change needs review before activation. Existing access is retained. Contact ${siteOrigin()}/account/support.`);
+  await this.db.query(`INSERT INTO vc_support_requests(id,account_id,category,subject,description,priority,external_key)
+   VALUES($1,$2,'billing','Computer-count payment review',$3,'high',$4) ON CONFLICT(external_key) DO NOTHING`,[randomUUID(),order.account_id,'Verified payment requires computer-count review: '+reference,'payment-review:'+reference]);
  }
  private async receiptEmail(reference:string,order:Row){
   await this.mail.queue('payment:'+reference,order.account_id,order.email,'VerseCue AI payment confirmed',`We verified your payment of NGN ${(order.amount/100).toFixed(2)} for ${order.months} month(s) of AI access${order.computer_count>1?' on '+order.computer_count+' organisation computers':''}. Open VerseCue to activate on your registered computer. Manage your plan and renewal preference at ${siteOrigin()}/account/upgrade. Reference: ${reference}.`);
  }
  async subscriptionEvent(event:string,data:any){
-  const code=String(data.subscription_code||'');if(!/^SUB_[a-zA-Z0-9]+$/.test(code))throw new LicenseError(400,"Invalid subscription event.");
-  if(event==='subscription.create'){
-   const planCode=data.plan?.plan_code;const customer=data.customer||{};
-   const [order]=await this.db.query(`SELECT o.*,a.email FROM vc_billing_orders o JOIN vc_accounts a ON a.id=o.account_id
+  const code=String(data.subscription_code||'');if(!/^SUB_[a-zA-Z0-9]+$/.test(code))throw new LicenseError(400,'Invalid subscription event.');
+  const status=event==='subscription.create'?'active':event==='subscription.disable'?'disabled':event==='subscription.not_renew'?'not-renewing':null;
+  if(!status)throw new LicenseError(400,'Invalid subscription event.');
+  let order:Row|undefined;const customer=data.customer||{},planCode=data.plan?.plan_code;
+  if(status==='active'){
+   [order]=await this.db.query(`SELECT o.*,a.email FROM vc_billing_orders o JOIN vc_accounts a ON a.id=o.account_id
     WHERE o.auto_renew=true AND o.plan_code=$1 AND a.email=$2 AND o.mode=$3 AND o.status IN ('pending','paid') ORDER BY o.created_at DESC LIMIT 1`,[planCode,normalizeEmail(customer.email),this.provider.mode]);
-   if(!order||Number(data.plan?.amount)!==Number(order.amount)||!customer.customer_code)throw new LicenseError(400,"Subscription does not match an approved checkout.");
-   await this.db.query(`INSERT INTO vc_billing_subscriptions(code,account_id,order_reference,customer_code,plan_code,mode) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(code) DO NOTHING`,[code,order.account_id,order.reference,customer.customer_code,planCode,this.provider.mode]);
-  }else if(['subscription.not_renew','subscription.disable'].includes(event))await this.db.query("UPDATE vc_billing_subscriptions SET status=$2 WHERE code=$1 AND mode=$3",[code,event==='subscription.disable'?'disabled':'not-renewing',this.provider.mode]);
+   if(!order||Number(data.plan?.amount)!==Number(order.amount)||!customer.customer_code)throw new LicenseError(400,'Subscription does not match an approved checkout.');
+  }
+  // A cancellation can arrive before creation. Persist its terminal state even without a subscription row.
+  // For a given code the supported lifecycle only advances: active -> not-renewing -> disabled.
+  await this.db.transaction([
+   {text:`INSERT INTO vc_subscription_states(code,mode,status) VALUES($1,$2,$3) ON CONFLICT(code,mode) DO UPDATE
+    SET status=CASE WHEN vc_subscription_states.status='disabled' OR EXCLUDED.status='disabled' THEN 'disabled'
+     WHEN vc_subscription_states.status='not-renewing' OR EXCLUDED.status='not-renewing' THEN 'not-renewing' ELSE 'active' END`,values:[code,this.provider.mode,status]},
+   ...(order?[{text:`INSERT INTO vc_billing_subscriptions(code,account_id,order_reference,customer_code,plan_code,mode,status)
+    SELECT $1,$2,$3,$4,$5,$6,status FROM vc_subscription_states WHERE code=$1 AND mode=$6 ON CONFLICT(code) DO NOTHING`,values:[code,order.account_id,order.reference,customer.customer_code,planCode,this.provider.mode]}]:[]),
+   {text:'UPDATE vc_billing_subscriptions s SET status=t.status FROM vc_subscription_states t WHERE s.code=t.code AND s.mode=t.mode AND s.code=$1 AND s.mode=$2',values:[code,this.provider.mode]}
+  ]);
  }
  async manage(token:string,value:unknown){
   const account=await this.webAccount(token);const code=String(value||'');
@@ -153,12 +189,19 @@ export class BillingService {
  async paymentReversed(reference:unknown,status:'refunded'|'disputed'){
   const ref=this.reference(reference);
   await this.db.transaction([
-   {text:"UPDATE vc_payment_receipts SET status=$2 WHERE reference=$1 AND mode=$3",values:[ref,status,this.provider.mode]},
-   {text:`UPDATE vc_licenses SET status='revoked' WHERE account_id=(SELECT account_id FROM vc_payment_receipts WHERE reference=$1 AND mode=$2)
-    AND status='active' AND access_kind='standard' AND $1=(SELECT reference FROM vc_payment_receipts p WHERE p.account_id=vc_licenses.account_id ORDER BY created_at DESC LIMIT 1)`,values:[ref,this.provider.mode]},
-   {text:`UPDATE vc_organisations o SET paid_expires_at=now() WHERE o.id=(SELECT organisation_id FROM vc_payment_receipts WHERE reference=$1 AND mode=$2)
-    AND $1=(SELECT reference FROM vc_payment_receipts WHERE organisation_id=o.id ORDER BY created_at DESC,reference DESC LIMIT 1)`,values:[ref,this.provider.mode]},
-   {text:"DELETE FROM vc_sessions WHERE kind='ai' AND account_id IN (SELECT account_id FROM vc_payment_receipts WHERE reference=$1 AND mode=$2)",values:[ref,this.provider.mode]}
+   ...this.paymentGuard(ref),
+   {text:'SELECT o.id FROM vc_organisations o JOIN vc_payment_receipts p ON p.organisation_id=o.id WHERE p.reference=$1 AND p.mode=$2 FOR UPDATE OF o',values:[ref,this.provider.mode]},
+   {text:'SELECT a.id FROM vc_accounts a JOIN vc_payment_receipts p ON p.account_id=a.id WHERE p.reference=$1 AND p.mode=$2 AND p.organisation_id IS NULL FOR UPDATE OF a',values:[ref,this.provider.mode]},
+   {text:`UPDATE vc_payment_guards SET reversal_status=CASE WHEN reversal_status='refunded' THEN 'refunded' ELSE $3 END WHERE reference=$1 AND mode=$2`,values:[ref,this.provider.mode,status]},
+   {text:`WITH changed AS (UPDATE vc_payment_receipts SET status=$3 WHERE reference=$1 AND mode=$2 AND status IN ('paid','review') RETURNING account_id,organisation_id),
+    personal AS (UPDATE vc_licenses l SET status='revoked' FROM changed c
+     WHERE c.organisation_id IS NULL AND l.account_id=c.account_id AND l.status='active' AND l.access_kind='standard'
+     AND $1=(SELECT reference FROM vc_payment_receipts p WHERE p.account_id=c.account_id AND p.organisation_id IS NULL AND p.mode=$2 ORDER BY created_at DESC,reference DESC LIMIT 1) RETURNING l.id)
+    UPDATE vc_organisations o SET paid_expires_at=LEAST(paid_expires_at,now()) FROM changed c WHERE o.id=c.organisation_id
+     AND $1=(SELECT reference FROM vc_payment_receipts p WHERE p.organisation_id=o.id AND p.mode=$2 ORDER BY created_at DESC,reference DESC LIMIT 1)`,values:[ref,this.provider.mode,status]},
+   {text:"UPDATE vc_payment_receipts SET status='refunded' WHERE reference=$1 AND mode=$2 AND status='disputed' AND $3='refunded'",values:[ref,this.provider.mode,status]}
   ]);
+  // AI refresh checks current entitlement. Retaining session identities avoids signing out
+  // newer payments or unrelated personal/organisation grants; cached leases still have their normal expiry.
  }
 }

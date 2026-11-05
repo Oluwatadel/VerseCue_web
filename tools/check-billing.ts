@@ -11,7 +11,7 @@ import type {LicensingDb,Statement} from '../lib/licensing-db';
 async function main(){
  let count=0;const check=(value:unknown,name:string)=>{assert.ok(value,name);count++;console.log('PASS '+name);};
  const reject=async(work:()=>Promise<unknown>,status:number,name:string)=>{await assert.rejects(work,(error:unknown)=>error instanceof LicenseError&&error.status===status);check(true,name);};
- const pg=new PGlite();for(const file of ['001-licensing.sql','002-complimentary-access.sql','003-free-accounts.sql','004-usage-analytics.sql','005-billing-email.sql','006-admin-organisations-support.sql','007-organisation-computers.sql'])await pg.exec(await readFile('db/'+file,'utf8'));
+ const pg=new PGlite();for(const file of ['001-licensing.sql','002-complimentary-access.sql','003-free-accounts.sql','004-usage-analytics.sql','005-billing-email.sql','006-admin-organisations-support.sql','007-organisation-computers.sql','008-webhook-idempotency.sql'])await pg.exec(await readFile('db/'+file,'utf8'));
  const db:LicensingDb={query:async(text,values=[]) => (await pg.query(text,values)).rows as any[],transaction:async(items:Statement[])=>pg.transaction(async tx=>{const result:any[]=[];for(const item of items)result.push((await tx.query(item.text,item.values||[])).rows);return result;})};
  const keys=generateKeyPairSync('rsa',{modulusLength:2048});const licensing=new LicensingService(db,{signingKey:keys.privateKey.export({type:'pkcs8',format:'pem'}).toString(),modelKey:randomBytes(32).toString('base64'),modelKeyId:'billing-test'});
  const email='payer@example.invalid',password='test-password-123456';const web=await licensing.webRegister({email,password,organisationName:'Billing Church'});
@@ -43,12 +43,20 @@ async function main(){
   throw new Error('Unexpected fixture path '+path);
  });
  const billing=new BillingService(db,licensing,provider,mail,true);
+ const unavailable=await new BillingService(db,licensing,new Paystack(''),mail,true).state(web.session);
+ check(!unavailable.checkoutAvailable&&!!unavailable.checkoutUnavailableReason&&unavailable.plans.length===3,'missing payment configuration keeps prices visible and explains why checkout is unavailable');
+ const unconfigured=new LicensingService(db,{signingKey:'',modelKey:'',modelKeyId:''});
+ const unready=await new BillingService(db,unconfigured,provider,mail,true).state(web.session);
+ check(!unready.checkoutAvailable&&unready.checkoutUnavailableReason.includes('activation'),'checkout is paused before charging when AI activation cannot be issued');
+
  const body=Buffer.from('{"event":"charge.success"}');const signature=createHmac('sha512',secret).update(body).digest('hex');
  check(provider.validSignature(body,signature)&&!provider.validSignature(Buffer.from('changed'),signature)&&!provider.validSignature(body,'00'),'webhook signatures reject modified payloads');
  await reject(()=>billing.checkout(web.session,'monthly',undefined),400,'renewal preference must be explicit');
  await reject(()=>billing.checkout(web.session,'invalid',false),400,'unknown plans are rejected');
  await billing.checkout(web.session,'monthly',false);const first=lastReference;
  check(initialized.amount===600000&&!initialized.plan,'monthly one-time checkout charges NGN 6000 without auto-renew');
+ check((await billing.resume(web.session,first)).url.endsWith(first),'pending checkout can be resumed without creating a second order');
+ await reject(()=>billing.resume(another.session,first),409,'another account cannot resume the checkout');
  const repeated=await billing.checkout(web.session,'monthly',false);check(repeated.url.endsWith(first),'repeated checkout reuses pending transaction');
  await reject(()=>billing.confirm(first,another.session),404,'another account cannot claim a payment');
  transactions.get(first).status='pending';await reject(()=>billing.confirm(first,web.session),409,'pending payment never activates AI');

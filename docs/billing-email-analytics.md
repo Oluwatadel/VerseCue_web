@@ -191,3 +191,70 @@ the daily job configured and use Email delivery to retry queued messages.
 
 Run `npm run test:organisations` for pricing boundaries, explicit membership,
 concurrent quotas, invitation ownership, multi-PC activation and support privacy.
+
+## Webhook retry and ordering protection
+
+Migration 008 adds a durable, mode-separated event ledger, payment reference
+locks/reversal tombstones, subscription cancellation tombstones and unique
+payment-review support keys. Apply it before deploying this handler.
+
+Authenticated event payloads are canonicalised and fingerprinted. Completed
+redeliveries return 200 without repeating processing. In-flight duplicates return
+503 so Paystack retries rather than acknowledging unfinished work. Failed claims
+remain visible and can retry immediately; abandoned claims can be reclaimed after
+five minutes. A crash between a business commit and marking the event complete
+is safe because business changes and email/support queues also deduplicate.
+No webhook bodies or secret values appear in the admin delivery list.
+
+Payment confirmation and reversals serialize on the reference and affected
+account/organisation before updating access. Refunds/disputes change entitlement
+only on the first transition from paid/review, retain newer entitlements and
+never delete unrelated or newly created AI sessions. Refresh still verifies the
+current entitlement; cached signed leases keep their normal offline expiry.
+A reversal arriving before payment confirmation records a tombstone that prevents
+later success notifications from activating that reversed transaction.
+
+For each subscription code, supported lifecycle states advance from active to
+not-renewing to disabled; old creation/cancellation events cannot move them back.
+Cancellation before creation is retained. A fresh subscription code can be active.
+Re-enabling the same cancelled code needs an explicit verified reconciliation
+flow; replayed creation events intentionally do not reactivate it.
+
+The upgrade UI explains Paystack-hosted checkout, account identity, upfront
+amounts, optional renewals, current AI access and pending/refunded/disputed/review
+states. Pending hosted checkout can be resumed only by its owner. After returning,
+confirmation retries for up to approximately one minute; users can also check a
+payment manually without paying again. The admin Payments page includes copyable
+callback/webhook URLs, payment filters and delivery processing/retry status.
+Actual hosted checkout branding is managed in the merchant Paystack account.
+
+Run `npm run test:webhooks` and `tools/check-payment-flow-ui.cjs` for these paths.
+Provider, browser and email tests simulate responses; they do not charge money.
+
+## Finding and buying plans
+
+Public pricing is available at `/pricing`, linked from navigation, the homepage
+and footer. Individual and organisation choices show the existing approved
+rates before sign-in. Plan and PC-count parameters survive login/registration;
+return destinations and query values remain allowlisted.
+
+The signed-in `/account` dashboard now includes direct Paystack purchase cards,
+current access, expiry, computer information and recent payments. The navigation
+links to `/account/upgrade` for billing history/renewal, `/account/organisation`
+for approved memberships and computer allocation, `/account/profile` for profile
+and administrator-issued activation codes, and `/account/support` for help.
+Organisation summaries disclose only owned or approved memberships, not member
+emails or private organisation account IDs. Membership approval remains an admin
+operation. Personal and organisation purchases use the same server-verified
+checkout and payment crediting rules.
+
+Checkout configuration errors do not hide the prices. The dashboard explains
+when the website operator has not enabled Paystack, or when activation is not
+ready. Such conditions deliberately disable payment instead of charging without
+being able to issue access. Set the existing PAYSTACK_SECRET_KEY and matching
+activation configuration on the website host, then redeploy/restart. A local UI
+change alone cannot update an already deployed website.
+
+`tools/check-account-dashboard-ui.cjs` checks public discovery, signup/sign-in
+return paths, direct purchase controls and dashboard layout at desktop/mobile
+sizes using simulated account/payment APIs; it does not charge real money.
