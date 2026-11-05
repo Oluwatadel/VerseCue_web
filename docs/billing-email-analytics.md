@@ -258,3 +258,32 @@ change alone cannot update an already deployed website.
 `tools/check-account-dashboard-ui.cjs` checks public discovery, signup/sign-in
 return paths, direct purchase controls and dashboard layout at desktop/mobile
 sizes using simulated account/payment APIs; it does not charge real money.
+
+## Test Paystack on a deployed website or hosting preview
+
+Use the **test** secret key from Paystack's Test mode dashboard and set these on
+the website host, then redeploy (do not change NODE_ENV):
+
+```
+PAYSTACK_SECRET_KEY=sk_test_your_actual_test_secret
+BILLING_ALLOW_TEST_CHECKOUT=1
+BILLING_ALLOW_TEST_ACTIVATION=0
+NEXT_PUBLIC_SITE_URL=https://your-preview-domain
+```
+
+Configure that preview's `/api/billing/callback` and `/api/billing/webhook` in
+Paystack **Test mode**. Migration 009 must be applied before deploying this code.
+Test payments use provider verification and duplicate protection, but are stored
+with receipt status `test`. They do not create/extend personal licences or paid
+organisation access, even if hosted using production activation keys/database.
+The dashboard labels checkout as test mode and explains that successful test
+payments do not activate live AI. Test receipt emails use the same explicit label.
+An existing ongoing/live subscription does not stop sandbox-only checkout tests.
+
+`BILLING_ALLOW_TEST_ACTIVATION=1` remains a separate, local-development-only option
+for testing AI activation itself. It is ignored under NODE_ENV=production.
+
+For launch: use the live `sk_live_` secret key, set BILLING_ALLOW_TEST_CHECKOUT=0,
+and configure callback/webhook in Paystack Live mode. Single-PC recurring plans
+must use plan codes from the same provider mode. Keep automatic renewal unchecked
+when testing one-time checkout without recurring-plan setup.

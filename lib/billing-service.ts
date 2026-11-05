@@ -7,42 +7,43 @@ import {Paystack} from "./paystack";
 import {EmailService} from "./email-service";
 export class ReversedPaymentError extends LicenseError {constructor(){super(409,"This payment was refunded or disputed. Contact support.");}}
 export class BillingService {
- constructor(private db:LicensingDb,private licensing:LicensingService,private provider=new Paystack(),private mail=new EmailService(db),private allowTestActivation=process.env.BILLING_ALLOW_TEST_ACTIVATION==='1'&&process.env.NODE_ENV!=='production'){}
+ constructor(private db:LicensingDb,private licensing:LicensingService,private provider=new Paystack(),private mail=new EmailService(db),private allowTestActivation=process.env.BILLING_ALLOW_TEST_ACTIVATION==='1'&&process.env.NODE_ENV!=='production',private allowTestCheckout=process.env.BILLING_ALLOW_TEST_CHECKOUT==='1'||allowTestActivation){}
  private async webAccount(token:string){const account=await this.licensing.account(token);if(account.session_kind!=="web")throw new LicenseError(401,"Sign in on the website to manage payments.");return account;}
  async state(token:string,computers=1){
   if(!quotePlan("monthly",computers))throw new LicenseError(400,"Choose between 1 and 10,000 computers.");
   const account=await this.webAccount(token);
-  let checkoutUnavailableReason=!this.provider.configured?'Online payments are not enabled on this website yet. Contact support for activation assistance.':this.provider.mode==='test'&&!this.allowTestActivation?'Live payments are not enabled yet. Your free account and existing AI access remain available.':'';
-  if(!checkoutUnavailableReason){try{this.licensing.requireActivationConfiguration();}catch{checkoutUnavailableReason='AI activation is being configured. Payment is paused so you are not charged before access can be issued. Contact support.';}}
+  let checkoutUnavailableReason=!this.provider.configured?'Online payments are not enabled on this website yet. Contact support for activation assistance.':this.provider.mode==='test'&&!this.allowTestCheckout?'Test checkout is not enabled on this website yet. Your free account and existing AI access remain available.':'';
+  if(!checkoutUnavailableReason&&(this.provider.mode==='live'||this.allowTestActivation)){try{this.licensing.requireActivationConfiguration();}catch{checkoutUnavailableReason='AI activation is being configured. Payment is paused so you are not charged before access can be issued. Contact support.';}}
   return {checkoutUnavailableReason,account:{email:account.email,organisationName:account.organisation_name},plans:BILLING_PLANS.map(base=>({...quotePlan(base.id,computers)!,autoRenewAvailable:computers>1?this.provider.configured:/^PLN_[a-zA-Z0-9]+$/.test(process.env[base.env]||'')})),
    organisations:await this.db.query("SELECT id,name,device_limit,paid_expires_at FROM vc_organisations WHERE owner_account_id=$1",[account.id]),
-   checkoutAvailable:!checkoutUnavailableReason,testMode:this.provider.mode==='test',
+   checkoutAvailable:!checkoutUnavailableReason,testMode:this.provider.mode==='test',testActivationAvailable:this.provider.mode==='test'&&this.allowTestActivation,
    licenses:account.licenses,orders:await this.db.query("SELECT reference,plan_id,computer_count,amount,status,created_at FROM vc_billing_orders WHERE account_id=$1 AND status IN ('pending','expired') ORDER BY created_at DESC LIMIT 10",[account.id]),payments:await this.db.query("SELECT reference,plan_id,months,amount,currency,mode,status,created_at FROM vc_payment_receipts WHERE account_id=$1 ORDER BY created_at DESC LIMIT 25",[account.id]),
    subscriptions:await this.db.query("SELECT code,status FROM vc_billing_subscriptions WHERE account_id=$1 ORDER BY created_at DESC",[account.id])};
  }
  async checkout(token:string,id:unknown,autoRenew:unknown,computers:unknown=1){
   const account=await this.webAccount(token);const plan=quotePlan(id,computers);
   if(!plan||typeof autoRenew!=="boolean")throw new LicenseError(400,"Choose a valid plan and renewal preference.");
-  if(!this.provider.configured || this.provider.mode==='test'&&!this.allowTestActivation)throw new LicenseError(503,"Live payment checkout is not configured yet. Free tools remain available.");
-  this.licensing.requireActivationConfiguration();
-  if(account.licenses.some(license=>license.status==='active'&&!license.expires_at))throw new LicenseError(409,"Your account already has ongoing AI access. No purchase is needed.");
+  if(!this.provider.configured || this.provider.mode==='test'&&!this.allowTestCheckout)throw new LicenseError(503,"Payment checkout is not configured yet. Free tools remain available.");
+  if(this.provider.mode==='live'||this.allowTestActivation)this.licensing.requireActivationConfiguration();
+  if((this.provider.mode==='live'||this.allowTestActivation)&&account.licenses.some(license=>license.status==='active'&&!license.expires_at))throw new LicenseError(409,"Your account already has ongoing AI access. No purchase is needed.");
   await this.licensing.rate("checkout:"+account.id,20);
   const [owned]=await this.db.query('SELECT * FROM vc_organisations WHERE owner_account_id=$1',[account.id]);
-  if(owned?.paid_expires_at&&new Date(owned.paid_expires_at).getTime()>Date.now()&&owned.device_limit!==plan.computerCount)throw new LicenseError(409,'Contact support to change the computer count during an active period. Renewal keeps the current number of computers.');
-  if(plan.computerCount>1&&account.licenses.some(l=>l.access_kind!=='organisation'&&l.status==='active'&&l.expires_at&&new Date(l.expires_at).getTime()>Date.now()))throw new LicenseError(409,'Contact support to move an active personal plan to organisation computers without losing paid time.');
+  if((this.provider.mode==='live'||this.allowTestActivation)&&owned?.paid_expires_at&&new Date(owned.paid_expires_at).getTime()>Date.now()&&owned.device_limit!==plan.computerCount)throw new LicenseError(409,'Contact support to change the computer count during an active period. Renewal keeps the current number of computers.');
+  if((this.provider.mode==='live'||this.allowTestActivation)&&plan.computerCount>1&&account.licenses.some(l=>l.access_kind!=='organisation'&&l.status==='active'&&l.expires_at&&new Date(l.expires_at).getTime()>Date.now()))throw new LicenseError(409,'Contact support to move an active personal plan to organisation computers without losing paid time.');
   const planCode=autoRenew?(plan.computerCount===1?process.env[plan.env]||'':await this.seatPlan(plan)):null;
   if(autoRenew&&!/^PLN_[a-zA-Z0-9]+$/.test(planCode||''))throw new LicenseError(503,"Auto-renew for this plan is not configured yet. You can choose a one-time payment.");
   if(autoRenew){
    const remote=await this.provider.call('/plan/'+encodeURIComponent(planCode!));
    if(Number(remote.amount)!==plan.amount||remote.currency!=='NGN'||remote.interval!==plan.interval||remote.plan_code!==planCode)throw new LicenseError(503,"The provider plan does not match this price. Contact the administrator.");
-   const existing=await this.db.query("SELECT code FROM vc_billing_subscriptions WHERE account_id=$1 AND status='active' LIMIT 1",[account.id]);
+   const existing=await this.db.query("SELECT code FROM vc_billing_subscriptions WHERE account_id=$1 AND mode=$2 AND status='active' LIMIT 1",[account.id,this.provider.mode]);
    if(existing.length)throw new LicenseError(409,"You already have auto-renew enabled. Manage that subscription before creating another.");
   }
   await this.db.query("UPDATE vc_billing_orders SET status='expired' WHERE account_id=$1 AND status='pending' AND created_at<now()-interval '1 hour'",[account.id]);
   let organisationId:string|null=null;
-  if(plan.computerCount>1){const [org]=await this.db.query(`INSERT INTO vc_organisations(id,name,owner_account_id,multi_device,device_limit) VALUES($1,$2,$3,true,$4)
+  if(plan.computerCount>1&&(this.provider.mode==='live'||this.allowTestActivation)){const [org]=await this.db.query(`INSERT INTO vc_organisations(id,name,owner_account_id,multi_device,device_limit) VALUES($1,$2,$3,true,$4)
    ON CONFLICT(owner_account_id) DO UPDATE SET owner_account_id=EXCLUDED.owner_account_id RETURNING id`,[randomUUID(),account.organisation_name,account.id,plan.computerCount]);organisationId=org.id;
    await this.db.query("INSERT INTO vc_organisation_members(organisation_id,account_id) VALUES($1,$2) ON CONFLICT(organisation_id,account_id) DO NOTHING",[org.id,account.id]);}
+  if(plan.computerCount>1&&this.provider.mode==='test'&&!this.allowTestActivation)organisationId=owned?.id||null;
   const reference='VC'+randomBytes(24).toString('hex');
   const rows=await this.db.query(`INSERT INTO vc_billing_orders(reference,account_id,plan_id,months,amount,auto_renew,mode,plan_code,computer_count,organisation_id)
    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(account_id) WHERE status='pending' DO NOTHING RETURNING *`,[reference,account.id,plan.id,plan.months,plan.amount,autoRenew,this.provider.mode,planCode,plan.computerCount,organisationId]);
@@ -63,9 +64,9 @@ export class BillingService {
  }
  async resume(token:string,value:unknown){
   const account=await this.webAccount(token),reference=this.reference(value);
-  if(!this.provider.configured||this.provider.mode==='test'&&!this.allowTestActivation)throw new LicenseError(503,'Payment checkout is not configured yet.');
-  this.licensing.requireActivationConfiguration();
-  if(account.licenses.some(l=>l.status==='active'&&!l.expires_at))throw new LicenseError(409,'Your account already has ongoing AI access. No purchase is needed.');
+  if(!this.provider.configured||this.provider.mode==='test'&&!this.allowTestCheckout)throw new LicenseError(503,'Payment checkout is not configured yet.');
+  if(this.provider.mode==='live'||this.allowTestActivation)this.licensing.requireActivationConfiguration();
+  if((this.provider.mode==='live'||this.allowTestActivation)&&account.licenses.some(l=>l.status==='active'&&!l.expires_at))throw new LicenseError(409,'Your account already has ongoing AI access. No purchase is needed.');
   const [order]=await this.db.query("SELECT authorization_url FROM vc_billing_orders WHERE reference=$1 AND account_id=$2 AND mode=$3 AND status='pending' AND created_at>now()-interval '1 hour'",[reference,account.id,this.provider.mode]);
   if(!order?.authorization_url)throw new LicenseError(409,'This checkout is unavailable or expired. Choose a plan to start a new checkout.');
   return {url:Paystack.checkoutUrl(order.authorization_url)};
@@ -84,6 +85,7 @@ export class BillingService {
   let [order]=await this.db.query("SELECT o.*,a.email FROM vc_billing_orders o JOIN vc_accounts a ON a.id=o.account_id WHERE o.reference=$1",[reference]);
   if(token){const account=await this.webAccount(token);if(!order||order.account_id!==account.id)throw new LicenseError(404,"Payment was not found for this account.");}
   const previous=await this.db.query("SELECT p.*,a.email FROM vc_payment_receipts p JOIN vc_accounts a ON a.id=p.account_id WHERE reference=$1",[reference]);
+  if(previous[0]?.status==='test'){await this.testReceiptEmail(reference,previous[0]);return this.testResult();}
   if(previous[0]?.status==='review'){await this.reviewPayment(reference,previous[0]);return {message:'Payment received. Support must review a computer-count change before activation. Your existing access is retained.',credited:false};}
   if(previous[0]&&previous[0].status!=='paid')throw new ReversedPaymentError();
   if(previous[0]){await this.receiptEmail(reference,previous[0]);return {message:'Payment verified. Return to VerseCue; AI access will activate automatically.',credited:false};}
@@ -105,7 +107,17 @@ export class BillingService {
 
   }
   if(!order||order.mode!==this.provider.mode||Number(verified.amount)!==Number(order.amount)||normalizeEmail(customer.email)!==order.email)throw new LicenseError(400,"Payment amount, currency or account does not match the order.");
-  if(this.provider.mode==='test'&&!this.allowTestActivation)throw new LicenseError(503,"Test payments cannot activate live AI access.");
+  if(this.provider.mode==='test'&&!this.allowTestActivation){
+   if(!this.allowTestCheckout)throw new LicenseError(503,'Test payments cannot activate live AI access.');
+   await this.db.transaction([
+    ...this.paymentGuard(reference),
+    {text:`INSERT INTO vc_payment_receipts(reference,transaction_id,account_id,plan_id,months,amount,currency,mode,computer_count,organisation_id,status)
+     SELECT $1,$2,$3,$4,$5,$6,'NGN','test',$7,$8,'test' WHERE NOT EXISTS(SELECT 1 FROM vc_payment_guards WHERE reference=$1 AND mode='test' AND reversal_status IS NOT NULL)
+     ON CONFLICT(reference) DO NOTHING`,values:[reference,String(verified.id),order.account_id,order.plan_id,order.months,order.amount,order.computer_count,order.organisation_id]},
+    {text:"UPDATE vc_billing_orders SET status='paid',customer_code=$2 WHERE reference=$1 AND EXISTS(SELECT 1 FROM vc_payment_receipts WHERE reference=$3 AND status='test')",values:[order.reference,customer.customer_code||null,reference]}
+   ]);
+   await this.rejectReversed(reference);await this.testReceiptEmail(reference,order);return this.testResult();
+  }
   if(order.organisation_id){
    const result=await this.db.transaction([
     ...this.paymentGuard(reference),
@@ -145,6 +157,8 @@ export class BillingService {
   await this.receiptEmail(reference,order);
   return {message:'Payment verified. Return to VerseCue; AI access will activate automatically.',credited:credited[3].length>0};
  }
+ private testResult(){return {message:'Paystack test payment verified. No real money was charged and no live AI access was activated.',credited:false,testMode:true};}
+ private testReceiptEmail(reference:string,order:Row){return this.mail.queue('test-payment:'+reference,order.account_id,order.email,'VerseCue test payment confirmed',`This was a Paystack TEST payment for NGN ${(Number(order.amount)/100).toFixed(2)}. No real money was charged and no live AI access was activated. Reference: ${reference}.`);}
  private paymentGuard(reference:string){return [
   {text:'INSERT INTO vc_payment_guards(reference,mode) VALUES($1,$2) ON CONFLICT(reference,mode) DO NOTHING',values:[reference,this.provider.mode]},
   {text:'SELECT reference FROM vc_payment_guards WHERE reference=$1 AND mode=$2 FOR UPDATE',values:[reference,this.provider.mode]}
@@ -199,7 +213,7 @@ export class BillingService {
      AND $1=(SELECT reference FROM vc_payment_receipts p WHERE p.account_id=c.account_id AND p.organisation_id IS NULL AND p.mode=$2 ORDER BY created_at DESC,reference DESC LIMIT 1) RETURNING l.id)
     UPDATE vc_organisations o SET paid_expires_at=LEAST(paid_expires_at,now()) FROM changed c WHERE o.id=c.organisation_id
      AND $1=(SELECT reference FROM vc_payment_receipts p WHERE p.organisation_id=o.id AND p.mode=$2 ORDER BY created_at DESC,reference DESC LIMIT 1)`,values:[ref,this.provider.mode,status]},
-   {text:"UPDATE vc_payment_receipts SET status='refunded' WHERE reference=$1 AND mode=$2 AND status='disputed' AND $3='refunded'",values:[ref,this.provider.mode,status]}
+   {text:"UPDATE vc_payment_receipts SET status=$3 WHERE reference=$1 AND mode=$2 AND (status='test' OR status='disputed' AND $3='refunded')",values:[ref,this.provider.mode,status]}
   ]);
   // AI refresh checks current entitlement. Retaining session identities avoids signing out
   // newer payments or unrelated personal/organisation grants; cached leases still have their normal expiry.
