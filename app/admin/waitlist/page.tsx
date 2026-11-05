@@ -68,19 +68,7 @@ export default function AdminWaitlistPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-white/10">
-        <div className="container-x flex flex-wrap items-center justify-between gap-4 py-5">
-          <Logo iconSize={30} />
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="btn-secondary text-sm"
-          >
-            {signingOut ? "Signing out..." : "Sign Out"}
-          </button>
-        </div>
-      </header>
+
 
       <main className="container-x py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -88,7 +76,7 @@ export default function AdminWaitlistPage() {
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-400">
               Admin
             </p>
-            <h1 className="mt-2 text-3xl font-bold">Waitlist</h1>
+            <h1 className="mt-2 text-3xl font-bold">Historical waitlist</h1>
             <p className="mt-1 text-sm text-slate-400">
               {entries === null
                 ? "Loading..."

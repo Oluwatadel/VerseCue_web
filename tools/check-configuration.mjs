@@ -28,5 +28,9 @@ checks.push(["MODEL_KEY_ID", /^[a-zA-Z0-9._-]{1,100}$/.test(e.MODEL_KEY_ID || ""
 const hours = Number(e.ACTIVATION_OFFLINE_HOURS || 72);
 checks.push(["ACTIVATION_OFFLINE_HOURS", Number.isFinite(hours) && hours >= 1 && hours <= 168, "use a number between 1 and 168; default is 72"]);
 for (const [name, valid, help] of checks) console.log(`${valid ? "OK" : "FIX"} ${name}${valid ? "" : ": " + help}`);
+console.log(/^sk_live_[a-zA-Z0-9]+$/.test(e.PAYSTACK_SECRET_KEY||"")?"OK PAYSTACK_SECRET_KEY: live checkout key format":"SETUP Paystack live checkout needs PAYSTACK_SECRET_KEY; free accounts remain available.");
+for(const name of ["PAYSTACK_PLAN_MONTHLY","PAYSTACK_PLAN_SIX_MONTHS","PAYSTACK_PLAN_ANNUAL"])console.log((/^PLN_[a-zA-Z0-9]+$/.test(e[name]||"")?"OK ":"SETUP ")+name+" (optional recurring plan)");
+console.log(e.RESEND_API_KEY&&e.EMAIL_FROM?"OK Email sender settings present; verify the sender domain in Resend.":"SETUP Transaction emails need RESEND_API_KEY and EMAIL_FROM.");
+console.log((e.CRON_SECRET?.length||0)>=32?"OK CRON_SECRET":"SETUP Renewal reminders/retries need CRON_SECRET and a scheduled job.");
 console.log("No secret values were printed. This checks configuration format, not database connectivity or migrations.");
 process.exitCode = checks.every(([, valid]) => valid) ? 0 : 1;

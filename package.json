@@ -11,7 +11,9 @@
     "db:migrate:check": "node tools/migrate-db.mjs --dry-run",
     "test:migrations": "node tools/check-db-migrations.mjs",
     "config:check": "node tools/check-configuration.mjs",
-    "config:activation": "node tools/configure-activation.mjs"
+    "config:activation": "node tools/configure-activation.mjs",
+    "test:billing": "tsx tools/check-billing.ts",
+    "test:organisations": "tsx tools/check-organisations.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

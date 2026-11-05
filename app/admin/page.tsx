@@ -1,2 +1,2 @@
-import { redirect } from "next/navigation";
-export default function Admin(){redirect("/admin/licenses");}
+import AnalyticsDashboard from "./components/AnalyticsDashboard";
+export default function Admin(){return <AnalyticsDashboard overview/>;}

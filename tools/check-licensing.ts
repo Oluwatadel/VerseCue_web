@@ -15,7 +15,7 @@ async function main(){
   }
   console.log("PASS database configuration failures give actionable errors without exposing credentials");
  } finally { if(previousUrl===undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL=previousUrl; }
- const pg=new PGlite(); await pg.exec(await readFile("db/001-licensing.sql","utf8")); await pg.exec(await readFile("db/002-complimentary-access.sql","utf8"));await pg.exec(await readFile("db/003-free-accounts.sql","utf8"));
+ const pg=new PGlite(); await pg.exec(await readFile("db/001-licensing.sql","utf8")); await pg.exec(await readFile("db/002-complimentary-access.sql","utf8"));await pg.exec(await readFile("db/003-free-accounts.sql","utf8"));await pg.exec(await readFile("db/004-usage-analytics.sql","utf8"));await pg.exec(await readFile("db/005-billing-email.sql","utf8"));await pg.exec(await readFile("db/006-admin-organisations-support.sql","utf8"));await pg.exec(await readFile("db/007-organisation-computers.sql","utf8"));
  const db:LicensingDb={query:async(text,values=[]) => (await pg.query(text,values)).rows as any[],
  transaction:async(items:Statement[])=>pg.transaction(async(tx)=>{const rows:any[]=[];for(const item of items) rows.push((await tx.query(item.text,item.values||[])).rows);return rows;})};
  const issuer=generateKeyPairSync("rsa",{modulusLength:3072}); const model=randomBytes(32);
@@ -130,6 +130,23 @@ async function main(){
  await noIssuer.webRegister({email:raceBasicEmail,password,organisationName:"Race Test Church"});
  const freeRace=await Promise.allSettled([a,b].map(async c=>noIssuer.freeDesktopLogin({email:raceBasicEmail,password,device:await proof(c,raceBasicEmail)})));
  ok(freeRace.filter(result=>result.status==="fulfilled").length===1,"two computers racing for free account binding have exactly one winner");
+ const usageEmail='usage@example.org';const usageWeb=await noIssuer.webRegister({email:usageEmail,password,organisationName:'Usage Church'});
+ const usageDesktop=await noIssuer.freeDesktopLogin({email:usageEmail,password,device:await proof(a,usageEmail)});
+ const minute=Math.floor(Date.now()/60000)*60-120;
+ await reject(async()=>noIssuer.recordUsage(usageWeb.session,{device:await proof(a,usageEmail),buckets:[{minute,runningSeconds:30,activeSeconds:20}]}),401,'website sessions cannot submit desktop usage');
+ await reject(async()=>noIssuer.recordUsage(usageDesktop.session,{device:await proof(a,usageEmail),buckets:[{minute,runningSeconds:30,activeSeconds:40}]}),400,'active usage cannot exceed running time');
+ await reject(async()=>noIssuer.recordUsage(usageDesktop.session,{device:await proof(a,usageEmail),buckets:[{minute:minute+86400,runningSeconds:30,activeSeconds:20}]}),400,'future usage is rejected');
+ await reject(async()=>noIssuer.recordUsage(usageDesktop.session,{device:await proof(b,usageEmail),buckets:[{minute,runningSeconds:30,activeSeconds:20}]}),409,'usage must come from registered computer');
+ for(const [runningSeconds,activeSeconds] of [[30,20],[30,20],[60,40],[10,5]])await noIssuer.recordUsage(usageDesktop.session,{device:await proof(a,usageEmail),buckets:[{minute,runningSeconds,activeSeconds}]});
+ await noIssuer.recordDownload(usageWeb.session);await noIssuer.recordDownload(usageWeb.session);
+ const analytics=await noIssuer.analytics();const usageAccount=analytics.accounts.find(account=>account.email===usageEmail)!;
+ ok(usageAccount.running_seconds===60&&usageAccount.active_seconds===40,'duplicate and older usage reports do not double-count or decrease minutes');
+ ok(usageAccount.downloads===2&&analytics.totals.running_seconds===60,'analytics aggregate downloads separately without multiplying usage');
+ ok(analytics.totals.desktop_users_30d===1&&analytics.daily.length===1,'analytics count distinct recent desktop users and UTC daily totals');
+ const reset=await noIssuer.requestPasswordReset(usageEmail);ok(!!reset,'existing account can request a password reset token');
+ await noIssuer.resetPassword(reset!.token,'updated-password-123456');
+ await reject(()=>noIssuer.resetPassword(reset!.token,'another-password-123456'),400,'password reset tokens are single-use');
+ await reject(()=>noIssuer.account(usageDesktop.session),401,'password reset invalidates desktop sessions');
  await mkdir("artifacts/licensing",{recursive:true});await writeFile("artifacts/licensing/fixture.json",JSON.stringify({lease:first.lease,publicKey:issuer.publicKey.export({type:"spki",format:"pem"}),deviceId:a.id,email,devicePrivateKey:a.key.privateKey.export({type:"pkcs8",format:"pem"}),modelKey:model.toString("base64")}));
  await pg.close();console.log(`${count} licensing checks passed`);
 }

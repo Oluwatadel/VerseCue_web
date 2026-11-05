@@ -26,7 +26,7 @@ node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3087
 - `/about`: product purpose and Airis IT Consult attribution.
 - `/releases`: factual development notes and installer availability.
 
-The public website has no payment, donation, checkout or waitlist flow. The old `/waitlist` path redirects to Downloads. Existing waitlist records, APIs and password-protected administration are retained for historical access; this update does not delete user data or change a hosted database.
+The website provides optional Paystack AI checkout after free account sign-in; there is no donation or waitlist campaign. The old `/waitlist` path redirects to Downloads. Existing waitlist records, APIs and password-protected administration are retained for historical access; this update does not delete user data or change a hosted database.
 
 ## Download and support configuration
 
@@ -56,7 +56,7 @@ The approved full logo is `../VerseCue/logo/vercue_logo.png`. `../VerseCue/tools
 
 ## Accounts and desktop activation
 
-`/account/login` and `/account` provide account sign-in/status. `/admin/licenses` issues email-specific activation codes, blocks accounts, revokes licences and resets bound computers. `/admin/waitlist` retains historical waitlist administration. No payment integration is included.
+`/account/login` and `/account` provide account sign-in/status. `/admin/licenses` issues email-specific activation codes, blocks accounts, revokes licences and resets bound computers. `/admin/waitlist` retains historical waitlist administration. Paystack checkout is implemented for optional AI access; provider setup is required before live use.
 
 Apply `db/001-licensing.sql` and `db/002-complimentary-access.sql` to PostgreSQL before enabling these features. Configure the server-only activation and model-key variables in `.env.example`, then pin the matching public key and HTTPS backend origin in the protected desktop build. Missing configuration fails closed. Public product pages still work without a database. `npm run test:licensing` runs the local PostgreSQL-compatible activation checks without a live database.
 
@@ -126,3 +126,11 @@ same email. AI revocation keeps free account and download access; blocking the
 account or resetting its computer invalidates account sessions. Debug builds
 retain the explicit development bypass. Rebuild the installer input to include
 this new sign-in flow; older installed builds do not change automatically.
+
+## Billing, email and analytics
+
+See [payments, email and analytics setup](docs/billing-email-analytics.md) for the
+approved prices, optional auto-renewal, Paystack webhooks, Resend, scheduled jobs
+and usage-counter definitions. Apply all migrations with `npm run db:migrate`.
+Admin pages: `/admin/analytics`, `/admin/payments`, `/admin/messages`.
+Signing in remains required for all users, including the free tier.

@@ -1,0 +1,29 @@
+const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const{spawn}=require('node:child_process');const{randomBytes,createHmac}=require('node:crypto');const{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{
+ const port=3099,base=`http://127.0.0.1:${port}`,secret=randomBytes(32).toString('hex');const output=path.resolve('artifacts/billing-analytics-ui');fs.mkdirSync(output,{recursive:true});
+ const server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port',String(port)],{cwd:process.cwd(),env:{...process.env,VERSECUE_NEXT_DIST_DIR:'.next-account-review',DATABASE_URL:'',ADMIN_PASSWORD:'',ADMIN_SESSION_SECRET:secret,PAYSTACK_SECRET_KEY:'',RESEND_API_KEY:'',CRON_SECRET:''},stdio:'ignore',windowsHide:true});let browser;
+ try{
+  let ready=false;for(let i=0;i<100;i++){try{if((await fetch(base+'/account/upgrade')).ok){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,150));}assert.ok(ready);
+  browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE});
+  const guest=await browser.newContext();for(const route of ['/api/admin/analytics','/api/admin/payments','/api/admin/messages'])assert.equal((await guest.request.get(base+route)).status(),401);
+  assert.equal((await guest.request.post(base+'/api/billing/webhook',{data:{event:'charge.success',data:{reference:'forged'}}})).status(),401);assert.equal((await guest.request.get(base+'/api/jobs/daily')).status(),401);await guest.close();
+  for(const width of [1440,390,320]){
+   const context=await browser.newContext({viewport:{width,height:950}});const payload=Buffer.from(JSON.stringify({exp:Date.now()+600000})).toString('base64url');await context.addCookies([{name:'vc_admin_session',value:payload+'.'+createHmac('sha256',secret).update(payload).digest('base64url'),url:base,httpOnly:true,sameSite:'Strict'}]);
+   const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));let submitted;
+   const plans=[{id:'monthly',name:'Monthly',months:1,amount:600000,monthlyNaira:6000,autoRenewAvailable:true},{id:'six-months',name:'Six months',months:6,amount:3300000,monthlyNaira:5500,autoRenewAvailable:true},{id:'annual',name:'Annual',months:12,amount:6000000,monthlyNaira:5000,autoRenewAvailable:true}];
+   await page.route('**/api/billing/state',route=>route.fulfill({json:{plans,checkoutAvailable:true,testMode:false,licenses:[],payments:[],subscriptions:[]}}));
+   await page.route('**/api/billing/checkout',async route=>{submitted=route.request().postDataJSON();await route.fulfill({status:503,json:{error:'Simulated checkout; no money charged.'}});});
+   await page.goto(base+'/account/upgrade');await page.getByRole('heading',{name:'Choose your VerseCue AI plan.'}).waitFor();
+   const renew=page.getByRole('checkbox');assert.equal(await renew.isChecked(),false);
+   const pay=page.getByRole('button',{name:/Pay.*33,000/});await pay.click();await page.getByRole('alert').filter({hasText:'Simulated checkout'}).waitFor();assert.equal(submitted.planId,'six-months');assert.equal(submitted.autoRenew,false);
+   await renew.check();const [renewRequest]=await Promise.all([page.waitForRequest('**/api/billing/checkout'),page.getByRole('button',{name:/Pay.*60,000/}).click()]);assert.equal(renewRequest.postDataJSON().autoRenew,true);assert.equal(renewRequest.postDataJSON().planId,'annual');
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.evaluate(()=>{document.activeElement?.blur();window.scrollTo(0,0);});await page.waitForTimeout(100);await page.screenshot({path:path.join(output,`upgrade-${width}.png`),fullPage:true});
+   await page.route('**/api/admin/analytics',route=>route.fulfill({json:{totals:{users:120,downloads:200,downloaders:100,running_seconds:7200,active_seconds:3600,desktop_users_30d:40},daily:[{day:'2026-11-05',running_seconds:7200,active_seconds:3600,users:40}],accounts:[{id:'test',email:'operator@example.invalid',organisation_name:'Community Church',downloads:2,running_seconds:120,active_seconds:60,last_seen:'2026-11-05T10:00:00Z'}]}}));
+   await page.goto(base+'/admin/analytics');await page.getByRole('heading',{name:'Total app minutes',exact:true}).waitFor();assert.match(await page.locator('body').innerText(),/120/);assert.match(await page.locator('body').innerText(),/requests, not completed installations/);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,`analytics-${width}.png`),fullPage:true});
+   await page.route('**/api/admin/messages',route=>route.fulfill({json:{configured:false,messages:[{id:'mail',recipient:'operator@example.invalid',subject:'Welcome to VerseCue',state:'queued',attempts:0,created_at:'2026-11-05T10:00:00Z'}]}}));await page.goto(base+'/admin/messages');await page.getByText('Welcome to VerseCue',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:/Retry queued emails/}).isDisabled(),true);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   await page.goto(base+'/account/forgot-password');assert.equal(await page.getByLabel('Email',{exact:true}).count(),1);await page.goto(base+'/account/reset-password?token=fixture');assert.equal(await page.getByLabel('New password',{exact:true}).count(),1);
+   assert.deepEqual(errors,[]);console.log(`PASS ${width}px: approved totals, explicit renewal opt-in, protected analytics and email setup states.`);await context.close();
+  }
+  console.log('Billing and analytics browser checks passed with simulated responses; no live charges or emails.');
+ }finally{if(browser)await browser.close();server.kill();}
+})().catch(error=>{console.error(error);process.exitCode=1;});
