@@ -27,6 +27,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.waitForURL(base+'/download');await page.getByRole('button',{name:'Windows installer coming soon',exact:true}).waitFor();
    assert.equal(registration.organisationName,'Community Church');assert.equal(registration.activationCode,undefined);
    await page.goto(base+'/account');await page.getByRole('heading',{name:'Your free workspace is ready',exact:true}).waitFor();
+   const menu=page.getByRole('button',{name:'Open account menu',exact:true});if(await menu.isVisible())await menu.click();
    await page.getByRole('navigation',{name:'Account navigation'}).getByRole('link',{name:/^Profile & activation/}).click();
    await page.getByRole('heading',{name:'Profile & activation',exact:true}).waitFor();await page.getByLabel('Activation code',{exact:true}).waitFor();
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));

@@ -238,9 +238,9 @@ and footer. Individual and organisation choices show the existing approved
 rates before sign-in. Plan and PC-count parameters survive login/registration;
 return destinations and query values remain allowlisted.
 
-The signed-in `/account` dashboard now includes direct Paystack purchase cards,
-current access, expiry, computer information and recent payments. The navigation
-links to `/account/upgrade` for billing history/renewal, `/account/organisation`
+The signed-in `/account` dashboard shows current access, expiry and computer
+information. The account sidebar links to `/account/upgrade` for all checkout,
+billing history and renewal controls, `/account/organisation`
 for approved memberships and computer allocation, `/account/profile` for profile
 and administrator-issued activation codes, and `/account/support` for help.
 Organisation summaries disclose only owned or approved memberships, not member
@@ -248,7 +248,7 @@ emails or private organisation account IDs. Membership approval remains an admin
 operation. Personal and organisation purchases use the same server-verified
 checkout and payment crediting rules.
 
-Checkout configuration errors do not hide the prices. The dashboard explains
+Checkout configuration errors do not hide the prices. Plans & billing explains
 when the website operator has not enabled Paystack, or when activation is not
 ready. Such conditions deliberately disable payment instead of charging without
 being able to issue access. Set the existing PAYSTACK_SECRET_KEY and matching
@@ -256,7 +256,7 @@ activation configuration on the website host, then redeploy/restart. A local UI
 change alone cannot update an already deployed website.
 
 `tools/check-account-dashboard-ui.cjs` checks public discovery, signup/sign-in
-return paths, direct purchase controls and dashboard layout at desktop/mobile
+return paths, centralised billing controls and dashboard layout at desktop/mobile
 sizes using simulated account/payment APIs; it does not charge real money.
 
 ## Test Paystack on a deployed website or hosting preview
@@ -287,3 +287,6 @@ For launch: use the live `sk_live_` secret key, set BILLING_ALLOW_TEST_CHECKOUT=
 and configure callback/webhook in Paystack Live mode. Single-PC recurring plans
 must use plan codes from the same provider mode. Keep automatic renewal unchecked
 when testing one-time checkout without recurring-plan setup.
+
+
+Account dashboard layout: signed-in pages use a full-height account sidebar without the public website navigation or footer. Overview shows account/access summaries and the desktop download. Plans & billing is the sole checkout, renewal and payment-history workspace; Organisation handles membership and invitations; Profile & activation handles profile details and activation codes; Support handles conversations. Public pricing links preserve the selected plan and computer count through sign-in.
