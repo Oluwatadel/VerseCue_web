@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { neon } from "@neondatabase/serverless";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const files = ["001-licensing.sql", "002-complimentary-access.sql", "003-free-accounts.sql", "004-usage-analytics.sql", "005-billing-email.sql", "006-admin-organisations-support.sql", "007-organisation-computers.sql", "008-webhook-idempotency.sql", "009-hosted-test-checkout.sql", "010-admin-pricing.sql", "011-activation-delivery.sql", "012-subscription-notices.sql"];
+const files = ["001-licensing.sql", "002-complimentary-access.sql", "003-free-accounts.sql", "004-usage-analytics.sql", "005-billing-email.sql", "006-admin-organisations-support.sql", "007-organisation-computers.sql", "008-webhook-idempotency.sql", "009-hosted-test-checkout.sql", "010-admin-pricing.sql", "011-activation-delivery.sql", "012-subscription-notices.sql", "013-email-diagnostics.sql"];
 
 // These migrations contain ordinary DDL. Refuse advanced SQL bodies rather
 // than silently splitting statements inside a function or quoted identifier.

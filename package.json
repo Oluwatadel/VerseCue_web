@@ -18,7 +18,8 @@
     "test:account-navigation": "tsx tools/check-account-navigation.ts",
     "test:pricing": "tsx tools/check-pricing.ts",
     "test:activation-delivery": "tsx tools/check-activation-delivery.ts",
-    "test:subscriptions": "tsx tools/check-subscriptions.ts"
+    "test:subscriptions": "tsx tools/check-subscriptions.ts",
+    "test:email-delivery": "tsx tools/check-email-delivery.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
