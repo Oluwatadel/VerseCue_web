@@ -15,7 +15,7 @@ ALTER TABLE vc_payment_receipts ADD COLUMN IF NOT EXISTS computer_count integer 
 ALTER TABLE vc_billing_orders ALTER COLUMN amount TYPE bigint;
 ALTER TABLE vc_payment_receipts ALTER COLUMN amount TYPE bigint;
 ALTER TABLE vc_payment_receipts DROP CONSTRAINT IF EXISTS vc_payment_receipts_status_check;
-ALTER TABLE vc_payment_receipts ADD CONSTRAINT vc_payment_receipts_status_check CHECK(status IN ('paid','refunded','disputed','review'));
+ALTER TABLE vc_payment_receipts ADD CONSTRAINT vc_payment_receipts_status_check CHECK(status IN ('paid','refunded','disputed','review','test'));
 CREATE TABLE IF NOT EXISTS vc_paystack_seat_plans (
  mode text NOT NULL,plan_id text NOT NULL,computer_count integer NOT NULL,amount bigint NOT NULL,plan_code text NOT NULL,
  PRIMARY KEY(mode,plan_id,computer_count)

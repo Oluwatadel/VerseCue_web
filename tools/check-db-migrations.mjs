@@ -17,7 +17,7 @@ console.log("PASS: Invalid connection strings fail before connecting; database f
 const db = new PGlite();
 try {
   const migrations = loadMigrations();
-  assert.deepEqual(migrations.map(m => m.statements.length), [7, 1, 4, 2, 6, 8, 9, 5, 2]);
+  assert.deepEqual(migrations.map(m => m.statements.length), [7, 1, 4, 2, 6, 8, 9, 5, 2, 1, 3, 2]);
   const apply = async () => {
     await db.exec("BEGIN");
     try {
@@ -29,7 +29,11 @@ try {
   await apply();
   const id = randomUUID();
   await db.query("INSERT INTO vc_licenses (id,owner_email,code_hash) VALUES ($1,$2,$3)", [id, "migration-test@example.invalid", randomUUID()]);
+  await db.query("INSERT INTO vc_accounts(id,email,organisation_name,password_hash) VALUES($1,$2,$3,$4)",[id,'migration-account@example.invalid','Migration Church','fixture']);
+  await db.query("INSERT INTO vc_payment_receipts(reference,transaction_id,account_id,plan_id,months,amount,currency,mode,status) VALUES($1,$2,$3,'monthly',1,600000,'NGN','test','test')",['migration-test-receipt','migration-test-transaction',id]);
   await apply();
+  assert.equal((await db.query("SELECT status FROM vc_payment_receipts WHERE reference='migration-test-receipt'")).rows[0].status,'test');
+  console.log('PASS: All migrations rerun with an existing hosted-test receipt without narrowing its status constraint.');
   const { rows } = await db.query("SELECT id,access_kind FROM vc_licenses");
   assert.deepEqual(rows, [{ id, access_kind: "standard" }]);
   await db.query("UPDATE vc_licenses SET access_kind='complimentary' WHERE id=$1", [id]);

@@ -57,13 +57,11 @@ No provider keys, merchant account or live checkout were provisioned by this cod
 
 ## Desktop handoff
 
-The desktop's Activate AI button opens `/account/upgrade`. Its activation window
-checks account entitlement every ten seconds. Once the backend confirms access,
-a device-signed claim exchanges the free desktop session for an AI session and
-a signed, device-bound lease. No second desktop password or activation code is
-needed for a paid upgrade. The signed offline lease is capped at paid expiry and
-at the normal offline grace (72 hours by default). A new launch also checks for
-newly purchased access. Old installed builds need updating to use this flow.
+After verified payment, `/account/upgrade` offers **Activate in desktop app** and **Email activation key**. The connection popup lets the user select a computer already registered with their account, waits for desktop acknowledgment and expires after ten minutes. The updated desktop app checks for requests every fifteen seconds while signed in, obtains and verifies its signed device-bound lease, enables AI, and confirms the request with a fresh device proof. The browser never receives the model key. The app must be open and connected; this flow does not launch a closed application.
+
+The alternative emails a random account-bound key only when the user chooses it. In VerseCue, select **Activate AI → Use activation key**. A key expires after 24 hours and binds to its first registered computer; interrupted redemption may retry on that same computer. Keys cannot add paid time, increase computer places or bypass revoked access. Provider email failures leave the message queued with truthful UI feedback. Expired queued keys are cancelled. Existing administrator-issued codes remain separate and supported.
+
+The existing activation-window polling and startup entitlement checks still work. Signed offline AI remains capped at paid expiry and the normal offline grace (72 hours by default). Update installed desktop builds and deploy the website together. Apply migration `011-activation-delivery.sql` with `npm run db:migrate`. Resend configuration and the existing email retry job are needed for actual email delivery. No new secrets are required.
 
 ## Resend email
 
@@ -290,3 +288,8 @@ when testing one-time checkout without recurring-plan setup.
 
 
 Account dashboard layout: signed-in pages use a full-height account sidebar without the public website navigation or footer. Overview shows account/access summaries and the desktop download. Plans & billing is the sole checkout, renewal and payment-history workspace; Organisation handles membership and invitations; Profile & activation handles profile details and activation codes; Support handles conversations. Public pricing links preserve the selected plan and computer count through sign-in.
+
+
+Every verified payment prepares a separate VerseCue payment acknowledgment, irrespective of the activation method or whether the desktop app is installed. This includes organisation payments and automatic renewals. It contains the amount, plan, purchased access period/computer allowance, reference and next steps. Verified payments needing computer-count review receive an acknowledgment that clearly says activation is pending review. Hosted sandbox receipts remain explicitly labelled TEST.
+
+The confirmation service attempts immediate delivery of that specific acknowledgment through the email provider. Failures retain the durable outbox entry for retry and do not undo payment. Stable per-reference IDs prevent duplicate emails when callbacks/webhooks repeat. Activation keys are only emailed when requested. Resend configuration and the retry job remain required for live delivery.

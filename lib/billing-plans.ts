@@ -4,10 +4,13 @@ export const BILLING_PLANS=[
  {id:"annual",name:"Annual",months:12,amount:6000000,monthlyNaira:5000,interval:"annually",env:"PAYSTACK_PLAN_ANNUAL"}
 ] as const;
 export function billingPlan(id:unknown){return BILLING_PLANS.find(plan=>plan.id===id);}
-export function quotePlan(id:unknown,computers:unknown=1){
+export const PRICING_GROUPS=[['individual','Individual · 1 PC'],['team','Organisation · 2–9 PCs'],['ten','Organisation · exactly 10 PCs'],['large','Organisation · 11+ PCs']] as const;
+export type PricingRates=Record<typeof PRICING_GROUPS[number][0],Record<typeof BILLING_PLANS[number]['id'],number>>;
+export const DEFAULT_PRICING:PricingRates={individual:{monthly:6000,'six-months':5500,annual:5000},team:{monthly:4000,'six-months':3500,annual:3500},ten:{monthly:4000,'six-months':4000,annual:4000},large:{monthly:3500,'six-months':3500,annual:3500}};
+export function quotePlan(id:unknown,computers:unknown=1,rates:PricingRates=DEFAULT_PRICING){
  const base=billingPlan(id);
  if(!base||typeof computers!=='number'||!Number.isInteger(computers)||computers<1||computers>10000)return undefined;
- const perComputerNaira=computers===1?base.monthlyNaira:computers<=9?(base.months===1?4000:3500):computers===10?4000:3500;
+ const perComputerNaira=rates[computers===1?'individual':computers<=9?'team':computers===10?'ten':'large'][base.id];
  return {...base,computerCount:computers,perComputerNaira,monthlyNaira:perComputerNaira*computers,amount:perComputerNaira*computers*base.months*100};
 }
 export function siteOrigin(){

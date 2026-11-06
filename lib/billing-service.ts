@@ -3,34 +3,46 @@ import type {LicensingDb,Row} from "./licensing-db";
 import {LicensingService} from "./licensing-service";
 import {LicenseError,hash,normalizeEmail} from "./licensing-security";
 import {BILLING_PLANS,quotePlan,siteOrigin} from "./billing-plans";
+import {PricingService} from './pricing-service';
 import {Paystack} from "./paystack";
 import {EmailService} from "./email-service";
 export class ReversedPaymentError extends LicenseError {constructor(){super(409,"This payment was refunded or disputed. Contact support.");}}
 export class BillingService {
  constructor(private db:LicensingDb,private licensing:LicensingService,private provider=new Paystack(),private mail=new EmailService(db),private allowTestActivation=process.env.BILLING_ALLOW_TEST_ACTIVATION==='1'&&process.env.NODE_ENV!=='production',private allowTestCheckout=process.env.BILLING_ALLOW_TEST_CHECKOUT==='1'||allowTestActivation){}
  private async webAccount(token:string){const account=await this.licensing.account(token);if(account.session_kind!=="web")throw new LicenseError(401,"Sign in on the website to manage payments.");return account;}
+ private async currentPlan(account:Row){
+  if(!account.licenses.some((l:Row)=>l.status==='active'&&(!l.expires_at||new Date(l.expires_at).getTime()>Date.now())))return null;
+  const [paid]=await this.db.query("SELECT plan_id FROM vc_payment_receipts WHERE account_id=$1 AND status='paid' AND mode=$2 ORDER BY created_at DESC LIMIT 1",[account.id,this.provider.mode]);return paid?.plan_id||null;
+ }
+ private async checkPlanPurchase(account:Row,planId:unknown){
+  if(this.provider.mode==='test'&&!this.allowTestActivation)return;
+  const current=await this.currentPlan(account);if(current===planId)throw new LicenseError(409,'Your current plan is already active. This plan becomes available again after expiry.');
+  if(current&&(await this.db.query("SELECT code FROM vc_billing_subscriptions WHERE account_id=$1 AND mode=$2 AND status='active' LIMIT 1",[account.id,this.provider.mode])).length)throw new LicenseError(409,'Cancel automatic renewal for your current plan before changing plans. Your remaining paid time is retained.');
+ }
  async state(token:string,computers=1){
   if(!quotePlan("monthly",computers))throw new LicenseError(400,"Choose between 1 and 10,000 computers.");
-  const account=await this.webAccount(token);
+  const account=await this.webAccount(token);const pricing=await new PricingService(this.db).read();const activePlanId=await this.currentPlan(account);
   let checkoutUnavailableReason=!this.provider.configured?'Online payments are not enabled on this website yet. Contact support for activation assistance.':this.provider.mode==='test'&&!this.allowTestCheckout?'Test checkout is not enabled on this website yet. Your free account and existing AI access remain available.':'';
   if(!checkoutUnavailableReason&&(this.provider.mode==='live'||this.allowTestActivation)){try{this.licensing.requireActivationConfiguration();}catch{checkoutUnavailableReason='AI activation is being configured. Payment is paused so you are not charged before access can be issued. Contact support.';}}
-  return {checkoutUnavailableReason,account:{email:account.email,organisationName:account.organisation_name},plans:BILLING_PLANS.map(base=>({...quotePlan(base.id,computers)!,autoRenewAvailable:computers>1?this.provider.configured:/^PLN_[a-zA-Z0-9]+$/.test(process.env[base.env]||'')})),
+  return {activePlanId,pricing:pricing.rates,pricingRevision:pricing.revision,checkoutUnavailableReason,account:{email:account.email,organisationName:account.organisation_name},plans:BILLING_PLANS.map(base=>({...quotePlan(base.id,computers,pricing.rates)!,autoRenewAvailable:computers>1||pricing.rates.individual[base.id]!==base.monthlyNaira?this.provider.configured:/^PLN_[a-zA-Z0-9]+$/.test(process.env[base.env]||'')})),
    organisations:await this.db.query("SELECT id,name,device_limit,paid_expires_at FROM vc_organisations WHERE owner_account_id=$1",[account.id]),
    checkoutAvailable:!checkoutUnavailableReason,testMode:this.provider.mode==='test',testActivationAvailable:this.provider.mode==='test'&&this.allowTestActivation,
    licenses:account.licenses,orders:await this.db.query("SELECT reference,plan_id,computer_count,amount,status,created_at FROM vc_billing_orders WHERE account_id=$1 AND status IN ('pending','expired') ORDER BY created_at DESC LIMIT 10",[account.id]),payments:await this.db.query("SELECT reference,plan_id,months,amount,currency,mode,status,created_at FROM vc_payment_receipts WHERE account_id=$1 ORDER BY created_at DESC LIMIT 25",[account.id]),
    subscriptions:await this.db.query("SELECT code,status FROM vc_billing_subscriptions WHERE account_id=$1 ORDER BY created_at DESC",[account.id])};
  }
- async checkout(token:string,id:unknown,autoRenew:unknown,computers:unknown=1){
-  const account=await this.webAccount(token);const plan=quotePlan(id,computers);
+ async checkout(token:string,id:unknown,autoRenew:unknown,computers:unknown=1,quotedAmount?:unknown){
+  const account=await this.webAccount(token);const pricing=await new PricingService(this.db).read();const plan=quotePlan(id,computers,pricing.rates);
   if(!plan||typeof autoRenew!=="boolean")throw new LicenseError(400,"Choose a valid plan and renewal preference.");
+  if(quotedAmount!==undefined&&quotedAmount!==plan.amount)throw new LicenseError(409,"Pricing has changed. Refresh plans and review the new amount before continuing.");
   if(!this.provider.configured || this.provider.mode==='test'&&!this.allowTestCheckout)throw new LicenseError(503,"Payment checkout is not configured yet. Free tools remain available.");
   if(this.provider.mode==='live'||this.allowTestActivation)this.licensing.requireActivationConfiguration();
   if((this.provider.mode==='live'||this.allowTestActivation)&&account.licenses.some(license=>license.status==='active'&&!license.expires_at))throw new LicenseError(409,"Your account already has ongoing AI access. No purchase is needed.");
+  await this.checkPlanPurchase(account,plan.id);
   await this.licensing.rate("checkout:"+account.id,20);
   const [owned]=await this.db.query('SELECT * FROM vc_organisations WHERE owner_account_id=$1',[account.id]);
   if((this.provider.mode==='live'||this.allowTestActivation)&&owned?.paid_expires_at&&new Date(owned.paid_expires_at).getTime()>Date.now()&&owned.device_limit!==plan.computerCount)throw new LicenseError(409,'Contact support to change the computer count during an active period. Renewal keeps the current number of computers.');
   if((this.provider.mode==='live'||this.allowTestActivation)&&plan.computerCount>1&&account.licenses.some(l=>l.access_kind!=='organisation'&&l.status==='active'&&l.expires_at&&new Date(l.expires_at).getTime()>Date.now()))throw new LicenseError(409,'Contact support to move an active personal plan to organisation computers without losing paid time.');
-  const planCode=autoRenew?(plan.computerCount===1?process.env[plan.env]||'':await this.seatPlan(plan)):null;
+  const planCode=autoRenew?(plan.computerCount===1&&plan.amount===BILLING_PLANS.find(p=>p.id===plan.id)!.amount?process.env[plan.env]||'':await this.seatPlan(plan)):null;
   if(autoRenew&&!/^PLN_[a-zA-Z0-9]+$/.test(planCode||''))throw new LicenseError(503,"Auto-renew for this plan is not configured yet. You can choose a one-time payment.");
   if(autoRenew){
    const remote=await this.provider.call('/plan/'+encodeURIComponent(planCode!));
@@ -49,7 +61,7 @@ export class BillingService {
    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(account_id) WHERE status='pending' DO NOTHING RETURNING *`,[reference,account.id,plan.id,plan.months,plan.amount,autoRenew,this.provider.mode,planCode,plan.computerCount,organisationId]);
   if(!rows.length){
    const [pending]=await this.db.query("SELECT * FROM vc_billing_orders WHERE account_id=$1 AND status='pending'",[account.id]);
-   if(pending?.authorization_url&&pending.plan_id===plan.id&&pending.auto_renew===autoRenew&&pending.computer_count===plan.computerCount)return {url:Paystack.checkoutUrl(pending.authorization_url)};
+   if(pending?.authorization_url&&pending.plan_id===plan.id&&Number(pending.amount)===plan.amount&&pending.auto_renew===autoRenew&&pending.computer_count===plan.computerCount)return {url:Paystack.checkoutUrl(pending.authorization_url)};
    throw new LicenseError(409,"A checkout is already pending. Finish it or wait up to one hour before starting a different plan.");
   }
   try {
@@ -67,8 +79,9 @@ export class BillingService {
   if(!this.provider.configured||this.provider.mode==='test'&&!this.allowTestCheckout)throw new LicenseError(503,'Payment checkout is not configured yet.');
   if(this.provider.mode==='live'||this.allowTestActivation)this.licensing.requireActivationConfiguration();
   if((this.provider.mode==='live'||this.allowTestActivation)&&account.licenses.some(l=>l.status==='active'&&!l.expires_at))throw new LicenseError(409,'Your account already has ongoing AI access. No purchase is needed.');
-  const [order]=await this.db.query("SELECT authorization_url FROM vc_billing_orders WHERE reference=$1 AND account_id=$2 AND mode=$3 AND status='pending' AND created_at>now()-interval '1 hour'",[reference,account.id,this.provider.mode]);
+  const [order]=await this.db.query("SELECT authorization_url,plan_id FROM vc_billing_orders WHERE reference=$1 AND account_id=$2 AND mode=$3 AND status='pending' AND created_at>now()-interval '1 hour'",[reference,account.id,this.provider.mode]);
   if(!order?.authorization_url)throw new LicenseError(409,'This checkout is unavailable or expired. Choose a plan to start a new checkout.');
+  await this.checkPlanPurchase(account,order.plan_id);
   return {url:Paystack.checkoutUrl(order.authorization_url)};
  }
  private async seatPlan(plan:NonNullable<ReturnType<typeof quotePlan>>){
@@ -158,19 +171,42 @@ export class BillingService {
   return {message:'Payment verified. Return to VerseCue; AI access will activate automatically.',credited:credited[3].length>0};
  }
  private testResult(){return {message:'Paystack test payment verified. No real money was charged and no live AI access was activated.',credited:false,testMode:true};}
- private testReceiptEmail(reference:string,order:Row){return this.mail.queue('test-payment:'+reference,order.account_id,order.email,'VerseCue test payment confirmed',`This was a Paystack TEST payment for NGN ${(Number(order.amount)/100).toFixed(2)}. No real money was charged and no live AI access was activated. Reference: ${reference}.`);}
+ private testReceiptEmail(reference:string,order:Row){return this.paymentAcknowledgment('test-payment:'+reference,order.account_id,order.email,'VerseCue test payment confirmed',`This was a Paystack TEST payment for NGN ${(Number(order.amount)/100).toFixed(2)}. No real money was charged and no live AI access was activated. Reference: ${reference}.`);}
  private paymentGuard(reference:string){return [
   {text:'INSERT INTO vc_payment_guards(reference,mode) VALUES($1,$2) ON CONFLICT(reference,mode) DO NOTHING',values:[reference,this.provider.mode]},
   {text:'SELECT reference FROM vc_payment_guards WHERE reference=$1 AND mode=$2 FOR UPDATE',values:[reference,this.provider.mode]}
  ];}
  private async rejectReversed(reference:string){const rows=await this.db.query('SELECT reference FROM vc_payment_guards WHERE reference=$1 AND mode=$2 AND reversal_status IS NOT NULL',[reference,this.provider.mode]);if(rows.length)throw new ReversedPaymentError();}
  private async reviewPayment(reference:string,order:Row){
-  await this.mail.queue('payment-review:'+reference,order.account_id,order.email,'VerseCue payment needs support review',`Payment ${reference} was received. A computer-count change needs review before activation. Existing access is retained. Contact ${siteOrigin()}/account/support.`);
+  await this.receiptEmail(reference,order,true);
   await this.db.query(`INSERT INTO vc_support_requests(id,account_id,category,subject,description,priority,external_key)
    VALUES($1,$2,'billing','Computer-count payment review',$3,'high',$4) ON CONFLICT(external_key) DO NOTHING`,[randomUUID(),order.account_id,'Verified payment requires computer-count review: '+reference,'payment-review:'+reference]);
  }
- private async receiptEmail(reference:string,order:Row){
-  await this.mail.queue('payment:'+reference,order.account_id,order.email,'VerseCue AI payment confirmed',`We verified your payment of NGN ${(order.amount/100).toFixed(2)} for ${order.months} month(s) of AI access${order.computer_count>1?' on '+order.computer_count+' organisation computers':''}. Open VerseCue to activate on your registered computer. Manage your plan and renewal preference at ${siteOrigin()}/account/upgrade. Reference: ${reference}.`);
+ private async paymentAcknowledgment(id:string,accountId:string,email:string,subject:string,text:string){
+  await this.mail.queue(id,accountId,email,subject,text);
+  // Target this receipt even when older welcome/support emails are waiting.
+  // Mail transport failures never roll back a verified payment; the durable outbox retries.
+  try{await this.mail.dispatch(1,id);}catch{}
+ }
+ private async receiptEmail(reference:string,order:Row,review=false){
+  const plan=BILLING_PLANS.find(plan=>plan.id===order.plan_id);
+  const amount=new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(Number(order.amount)/100);
+  const text=[
+   'Thank you for choosing VerseCue.',
+   'We acknowledge receipt of your verified payment for VerseCue AI access.',
+   `Amount received: ${amount}`,
+   `Plan: ${plan?.name||order.plan_id}`,
+   `Access period purchased: ${order.months} month(s)`,
+   `Computer allowance purchased: ${order.computer_count||1}`,
+   `Payment reference: ${reference}`,
+   review?'Your payment was received, but a computer-count change requires support review before activation. Your existing access is retained.':'Your AI access is ready on your VerseCue account.',
+   review?`Contact support: ${siteOrigin()}/account/support`:`To activate, sign in at ${siteOrigin()}/account/upgrade and choose Activate in desktop app or Email activation key. An activation key is emailed only when you choose that option.`,
+   `Not installed yet? Download VerseCue at ${siteOrigin()}/download and sign in with this email. Installing the app later does not postpone your subscription.`,
+   `Manage your plan and renewal preference: ${siteOrigin()}/account/upgrade`,
+   'Keep this acknowledgment for your records. Bible lookup and presentation tools remain free.',
+   'The VerseCue team'
+  ].join('\n\n');
+  await this.paymentAcknowledgment((review?'payment-review:':'payment:')+reference,order.account_id,order.email,review?'VerseCue payment received — support review pending':'VerseCue payment received — thank you',text);
  }
  async subscriptionEvent(event:string,data:any){
   const code=String(data.subscription_code||'');if(!/^SUB_[a-zA-Z0-9]+$/.test(code))throw new LicenseError(400,'Invalid subscription event.');

@@ -181,6 +181,11 @@ export class LicensingService {
   const rows=await this.db.query("SELECT id FROM vc_licenses WHERE account_id=$1 AND status='active' AND (device_id IS NULL OR device_id=$2) AND (expires_at IS NULL OR expires_at>now())",[account.id,account.session_device]);
   return {active:rows.length>0};
  }
+ async activationDevice(token:string,value:unknown){
+  const account=await this.account(token);const d=await this.proof(value,account.email);
+  if(account.session_kind!=='free'||!await this.registeredSessionComputer(account,d))throw new LicenseError(409,'Sign in on the registered desktop computer to activate.');
+  return {account,device:d};
+ }
  async claimAi(token:string,value:unknown){
   this.configured();const account=await this.account(token);const d=await this.proof(value,account.email);
   if(account.session_kind!=="free"||!await this.registeredSessionComputer(account,d))throw new LicenseError(409,"This activation must use the registered computer.");
