@@ -46,9 +46,9 @@ export default function VideoShowcase() {
         </h2>
       </div>
 
-      <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-slate-400">An earlier concept film. See the desktop screenshots for the current interface and workflow.</p>
-      <div className="glass mx-auto mt-10 max-w-4xl rounded-3xl p-3 sm:p-4">
-        <div className="group relative overflow-hidden rounded-2xl bg-black">
+      <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-slate-500">An earlier concept film. See the desktop screenshots for the current interface and workflow.</p>
+      <div className="glass mx-auto mt-10 max-w-4xl rounded-xl p-3 sm:p-4">
+        <div className="group relative overflow-hidden rounded-xl bg-black">
           <video
             ref={videoRef}
             className="aspect-video w-full"

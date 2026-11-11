@@ -19,20 +19,20 @@ export default function DesktopWorkspace() {
       <div className="max-w-3xl">
         <p className="eyebrow">Inside the desktop app</p>
         <h2 id="workspace-title" className="mt-3 text-3xl font-bold sm:text-4xl">See your choices before the congregation does.</h2>
-        <p className="mt-4 leading-7 text-slate-300">Follow transcription, review recent detections and prepare the next verse from the main dashboard. Explore the gallery for appearance previews and speech-model controls.</p>
+        <p className="mt-4 leading-7 text-slate-600">Follow transcription, review recent detections and prepare the next verse from the main dashboard. Explore the gallery for appearance previews and speech-model controls.</p>
       </div>
       <div className="mt-7 flex flex-wrap gap-2" aria-label="Desktop screenshots">
         {VIEWS.map((item, index) => <button key={item.label} type="button" aria-pressed={selected === index}
-          onClick={() => setSelected(index)} className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${selected === index ? "border-blue-300/50 bg-blue-400/15 text-blue-100" : "border-white/10 text-slate-300 hover:bg-white/5"}`}>{item.label}</button>)}
+          onClick={() => setSelected(index)} className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${selected === index ? "border-blue-300/50 bg-blue-400/15 text-blue-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{item.label}</button>)}
       </div>
-      <figure className="glass mt-5 overflow-hidden rounded-2xl">
+      <figure className="glass mt-5 overflow-hidden rounded-xl">
         <div className="flex min-h-0 justify-center bg-slate-950/70 p-2 sm:p-4">
           <Image key={view.src} src={view.src} width={view.width} height={view.height} sizes="(max-width: 768px) 100vw, 1200px"
             alt={`VerseCue Windows desktop: ${view.description}`} className="h-auto max-h-[680px] w-auto max-w-full rounded-lg object-contain" />
         </div>
-        <figcaption className="border-t border-white/10 p-5">
-          <p className="text-sm leading-6 text-slate-200">{view.description}</p>
-          <p className="mt-2 text-xs text-slate-400">Current desktop interface with demonstration content. Screenshots are still images; appearance varies with the selected theme and window size.</p>
+        <figcaption className="border-t border-slate-200 p-5">
+          <p className="text-sm leading-6 text-slate-700">{view.description}</p>
+          <p className="mt-2 text-xs text-slate-500">Current desktop interface with demonstration content. Screenshots are still images; appearance varies with the selected theme and window size.</p>
         </figcaption>
       </figure>
     </section>

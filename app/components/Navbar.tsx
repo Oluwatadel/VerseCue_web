@@ -19,7 +19,7 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/5 bg-[#030b1c]/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
       <nav className="container-x flex items-center justify-between py-4">
         <a
           href="/"
@@ -30,13 +30,13 @@ export default function Navbar() {
           <Logo iconSize={34} />
         </a>
 
-        <div className="hidden items-center gap-5 text-sm text-slate-300 lg:flex">
+        <div className="hidden items-center gap-5 text-sm text-slate-600 lg:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
               aria-current={pathname === link.href ? "page" : undefined}
-              className={pathname === link.href ? "text-blue-200" : "transition hover:text-white"}
+              className={pathname === link.href ? "text-blue-700" : "transition hover:text-blue-700"}
             >
               {link.label}
             </a>
@@ -53,7 +53,7 @@ export default function Navbar() {
             aria-controls="mobile-menu"
             aria-label={open ? "Close menu" : "Open menu"}
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white lg:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-900 lg:hidden"
           >
             <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
             {open ? (
@@ -70,14 +70,14 @@ export default function Navbar() {
       </nav>
 
       {open && (
-        <div id="mobile-menu" className="border-t border-white/5 lg:hidden">
-          <div className="container-x flex flex-col gap-1 py-4 text-slate-300">
+        <div id="mobile-menu" className="border-t border-slate-200 lg:hidden">
+          <div className="container-x flex flex-col gap-1 py-4 text-slate-600">
             {NAV_LINKS.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-3 text-base transition hover:bg-white/5 hover:text-white"
+                className="rounded-lg px-3 py-3 text-base transition hover:bg-slate-50 hover:text-blue-700"
               >
                 {link.label}
               </a>

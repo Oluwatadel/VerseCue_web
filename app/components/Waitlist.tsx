@@ -30,20 +30,20 @@ export default function Waitlist() {
 
   return (
     <section id="waitlist" className="container-x py-20 sm:py-24">
-      <div className="mx-auto max-w-3xl rounded-3xl border border-blue-400/20 bg-gradient-to-br from-blue-600/15 to-violet-600/15 p-6 sm:p-10">
-        <p className="text-sm font-semibold uppercase tracking-widest text-blue-300">
+      <div className="mx-auto max-w-3xl rounded-xl border border-blue-400/20 bg-gradient-to-br from-blue-600/15 to-violet-600/15 p-6 sm:p-10">
+        <p className="text-sm font-semibold uppercase tracking-widest text-blue-700">
           Early access
         </p>
         <h2 className="mt-3 text-3xl font-bold sm:text-4xl">
           Join the VerseCue waitlist
         </h2>
-        <p className="mt-3 text-slate-300">
+        <p className="mt-3 text-slate-600">
           For churches and media teams in Nigeria and internationally. Register your interest in the Windows desktop release and receive early-access updates.
         </p>
 
         <form onSubmit={join} className="mt-8 grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="wl-name" className="mb-2 block text-sm text-slate-200">
+            <label htmlFor="wl-name" className="mb-2 block text-sm text-slate-700">
               Your name
             </label>
             <input
@@ -56,7 +56,7 @@ export default function Waitlist() {
             />
           </div>
           <div>
-            <label htmlFor="wl-email" className="mb-2 block text-sm text-slate-200">
+            <label htmlFor="wl-email" className="mb-2 block text-sm text-slate-700">
               Email address
             </label>
             <input
@@ -70,7 +70,7 @@ export default function Waitlist() {
             />
           </div>
           <div>
-            <label htmlFor="wl-church" className="mb-2 block text-sm text-slate-200">
+            <label htmlFor="wl-church" className="mb-2 block text-sm text-slate-700">
               Church / organization
             </label>
             <input
@@ -82,7 +82,7 @@ export default function Waitlist() {
             />
           </div>
           <div>
-            <label htmlFor="wl-role" className="mb-2 block text-sm text-slate-200">
+            <label htmlFor="wl-role" className="mb-2 block text-sm text-slate-700">
               Your role
             </label>
             <select id="wl-role" className="input" name="role" defaultValue="">
@@ -96,14 +96,14 @@ export default function Waitlist() {
               <option>Other</option>
             </select>
           </div>
-          <p className="text-sm leading-6 text-slate-300 sm:col-span-2">Release availability, final requirements and pricing will be shared when confirmed. Signing up does not purchase a licence.</p>
+          <p className="text-sm leading-6 text-slate-600 sm:col-span-2">Release availability, final requirements and pricing will be shared when confirmed. Signing up does not purchase a licence.</p>
           <button disabled={loading} className="btn-primary sm:col-span-2">
             {loading ? "Joining..." : "Join the Waitlist"}
           </button>
         </form>
 
         {status && (
-          <p role="status" className="mt-5 rounded-xl bg-white/5 p-4 text-sm">
+          <p role="status" className="mt-5 rounded-xl bg-slate-50 p-4 text-sm">
             {status}
           </p>
         )}

@@ -77,7 +77,7 @@ export default function AdminWaitlistPage() {
               Admin
             </p>
             <h1 className="mt-2 text-3xl font-bold">Historical waitlist</h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-slate-500">
               {entries === null
                 ? "Loading..."
                 : `${entries.length} total signup${entries.length === 1 ? "" : "s"}`}
@@ -106,11 +106,11 @@ export default function AdminWaitlistPage() {
         )}
 
         {entries === null && !error && (
-          <p className="mt-10 text-slate-400">Loading waitlist entries...</p>
+          <p className="mt-10 text-slate-500">Loading waitlist entries...</p>
         )}
 
         {entries !== null && filtered.length === 0 && (
-          <p className="mt-10 text-slate-400">
+          <p className="mt-10 text-slate-500">
             {entries.length === 0
               ? "No signups yet."
               : "No entries match your search."}
@@ -120,9 +120,9 @@ export default function AdminWaitlistPage() {
         {filtered.length > 0 && (
           <>
             {/* Table view: sm and up */}
-            <div className="mt-8 hidden overflow-x-auto rounded-2xl border border-white/10 sm:block">
+            <div className="mt-8 hidden overflow-x-auto rounded-xl border border-slate-200 sm:block">
               <table className="w-full text-left text-sm">
-                <thead className="bg-white/[.04] text-xs uppercase tracking-wider text-slate-400">
+                <thead className="bg-white/[.04] text-xs uppercase tracking-wider text-slate-500">
                   <tr>
                     <th className="px-5 py-3 font-semibold">Name</th>
                     <th className="px-5 py-3 font-semibold">Email</th>
@@ -134,17 +134,17 @@ export default function AdminWaitlistPage() {
                 <tbody className="divide-y divide-white/5">
                   {filtered.map((entry) => (
                     <tr key={entry.id} className="hover:bg-white/[.03]">
-                      <td className="px-5 py-4 font-medium text-white">
+                      <td className="px-5 py-4 font-medium text-slate-900">
                         {entry.name}
                       </td>
-                      <td className="px-5 py-4 text-slate-300">{entry.email}</td>
-                      <td className="px-5 py-4 text-slate-300">
+                      <td className="px-5 py-4 text-slate-600">{entry.email}</td>
+                      <td className="px-5 py-4 text-slate-600">
                         {entry.church || "—"}
                       </td>
-                      <td className="px-5 py-4 text-slate-300">
+                      <td className="px-5 py-4 text-slate-600">
                         {entry.role || "—"}
                       </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-slate-400">
+                      <td className="px-5 py-4 whitespace-nowrap text-slate-500">
                         {formatDate(entry.createdAt)}
                       </td>
                     </tr>
@@ -158,18 +158,18 @@ export default function AdminWaitlistPage() {
               {filtered.map((entry) => (
                 <div
                   key={entry.id}
-                  className="glass rounded-2xl p-5"
+                  className="glass rounded-xl p-5"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <p className="font-semibold text-white">{entry.name}</p>
-                    <span className="whitespace-nowrap rounded-full bg-blue-400/10 px-2.5 py-1 text-xs text-blue-200">
+                    <p className="font-semibold text-slate-900">{entry.name}</p>
+                    <span className="whitespace-nowrap rounded-full bg-blue-400/10 px-2.5 py-1 text-xs text-blue-700">
                       {entry.role || "No role"}
                     </span>
                   </div>
-                  <p className="mt-2 break-all text-sm text-slate-300">
+                  <p className="mt-2 break-all text-sm text-slate-600">
                     {entry.email}
                   </p>
-                  <div className="mt-3 space-y-1 text-sm text-slate-400">
+                  <div className="mt-3 space-y-1 text-sm text-slate-500">
                     <p>
                       <span className="text-slate-500">Church / Org: </span>
                       {entry.church || "—"}

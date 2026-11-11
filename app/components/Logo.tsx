@@ -13,7 +13,7 @@ export function Logo({ className = "", iconSize = 36 }: { className?: string; ic
 
 /**
  * Airis IT Consult's wordmark uses dark text, so it needs a light
- * surface behind it on this dark theme. Wrapped in a small rounded
+ * surface behind it. Wrapped in a small rounded
  * badge — the standard "powered by" partner-logo treatment.
  */
 export function AirisBadge({

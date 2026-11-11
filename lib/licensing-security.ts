@@ -38,10 +38,10 @@ export function validateDevice(value: unknown, email: string): Device {
  } catch { throw new LicenseError(401,"Device verification failed."); }
  return { ...d, name: String(d.name || "Windows computer").slice(0,100) };
 }
-export async function readJson(request: Request): Promise<Record<string, any>> {
+export async function readJson(request: Request,maxBytes=16384): Promise<Record<string, any>> {
  const reader = request.body?.getReader(); if (!reader) throw new LicenseError(400,"A request body is required.");
  const chunks: Uint8Array[] = []; let length = 0;
- while (true) { const part = await reader.read(); if(part.done) break; length += part.value.length; if(length > 16384) { await reader.cancel(); throw new LicenseError(413,"Request too large."); } chunks.push(part.value); }
+ while (true) { const part = await reader.read(); if(part.done) break; length += part.value.length; if(length > Math.min(1048576,Math.max(1,maxBytes))) { await reader.cancel(); throw new LicenseError(413,"Request too large."); } chunks.push(part.value); }
  try { const body = JSON.parse(Buffer.concat(chunks).toString("utf8")); if(!body || typeof body!=="object" || Array.isArray(body)) throw new Error(); return body; }
  catch { throw new LicenseError(400,"Invalid request."); }
 }

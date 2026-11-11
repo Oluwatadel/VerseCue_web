@@ -134,3 +134,14 @@ approved prices, optional auto-renewal, Paystack webhooks, Resend, scheduled job
 and usage-counter definitions. Apply all migrations with `npm run db:migrate`.
 Admin pages: `/admin/analytics`, `/admin/payments`, `/admin/messages`.
 Signing in remains required for all users, including the free tier.
+
+
+### Dashboard reports and mobile remote
+
+The admin overview and analytics pages use a classic white-and-blue workspace with a 30-day synced-usage chart, subscription distribution and searchable account tables. Account reports include registration, first/latest installer request, plan, access status and expiry countdown. Counts are built from aggregated downloads/usage and the applicable personal or approved organisation entitlement; a request does not prove installation completed. Free accounts have no subscription expiry. This reporting update needs no new migration. Run `npm run test:reporting` for database-backed fixture checks.
+
+The separate `../versecue-remote` project contains the native Android/iPhone controller. Desktop pairing is under Preferences → Mobile remote. See that project's README and `../VerseCue/docs/mobile-remote.md` for local-network pairing, encrypted session details, build/signing and physical-device release checks. The website has not been deployed by these changes.
+
+## Reviewed speech-test reports
+
+Optional desktop recordings can be reviewed and explicitly shared with administrators. See [setup, storage and retention](TEST-REPORTS.md) before enabling audio uploads.

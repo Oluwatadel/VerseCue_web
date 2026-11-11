@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import {CountdownClock} from "./components/ExpiryCountdown";
 import { PRODUCT } from "../lib/product";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://versecue.app";
@@ -64,7 +65,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><CountdownClock>{children}</CountdownClock></body>
     </html>
   );
 }

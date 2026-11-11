@@ -1,3 +1,4 @@
+import {accountSummaries,subscriptionTotals} from './account-reporting';
 import { randomBytes, randomUUID, createPrivateKey, createPublicKey, publicEncrypt, sign, constants } from "node:crypto";
 import {siteOrigin} from "./billing-plans";
 import {organisationAccess,reserveComputer} from "./organisation-devices";
@@ -167,20 +168,17 @@ export class LicensingService {
   const daily=await this.db.query(`SELECT to_char(minute_utc AT TIME ZONE 'UTC','YYYY-MM-DD') AS day,
    sum(running_seconds)::float8 AS running_seconds,sum(active_seconds)::float8 AS active_seconds,count(DISTINCT account_id)::int AS users
    FROM vc_usage_minutes WHERE minute_utc>=now()-interval '30 days' GROUP BY 1 ORDER BY 1`);
-  const accounts=await this.db.query(`SELECT a.id,a.email,a.organisation_name,a.status,COALESCE(d.downloads,0) AS downloads,
-   COALESCE(u.running_seconds,0)::float8 AS running_seconds,COALESCE(u.active_seconds,0)::float8 AS active_seconds,u.last_seen
-   FROM vc_accounts a LEFT JOIN (SELECT account_id,count(*)::int AS downloads FROM vc_downloads GROUP BY account_id)d ON d.account_id=a.id
-   LEFT JOIN (SELECT account_id,sum(running_seconds) AS running_seconds,sum(active_seconds) AS active_seconds,max(minute_utc) AS last_seen
-    FROM vc_usage_minutes GROUP BY account_id)u ON u.account_id=a.id ORDER BY u.last_seen DESC NULLS LAST,a.created_at DESC LIMIT 100`);
-  return {totals,daily,accounts};
+  const accounts=await accountSummaries(this.db,100);const subscriptions=await subscriptionTotals(this.db);
+  return {totals:{...totals,...subscriptions},daily,accounts,serverNow:new Date().toISOString()};
  }
- async aiStatus(token:string){
+ async desktopAiContext(token:string){
   const account=await this.account(token);
   if(account.session_kind!=="free"||!await this.registeredSessionComputer(account))throw new LicenseError(401,"Sign in to VerseCue again.");
-  if(account.licenses.some(license=>license.access_kind==='organisation'))return {active:true};
-  const rows=await this.db.query("SELECT id FROM vc_licenses WHERE account_id=$1 AND status='active' AND (device_id IS NULL OR device_id=$2) AND (expires_at IS NULL OR expires_at>now())",[account.id,account.session_device]);
-  return {active:rows.length>0};
+  const active=account.licenses.some(license=>license.status==='active'&&(!license.expires_at||new Date(license.expires_at).getTime()>Date.now())&&
+   (!license.device_id||license.device_id===account.session_device));
+  return {account,active};
  }
+ async aiStatus(token:string){const {active}=await this.desktopAiContext(token);return {active};}
  async activationDevice(token:string,value:unknown){
   const account=await this.account(token);const d=await this.proof(value,account.email);
   if(account.session_kind!=='free'||!await this.registeredSessionComputer(account,d))throw new LicenseError(409,'Sign in on the registered desktop computer to activate.');
@@ -250,10 +248,10 @@ export class LicensingService {
   return rows.some(row=>!d||row.public_key===d.publicKey);
  }
  async account(token: string): Promise<Row & {licenses: Row[]}> {
-  const rows=await this.db.query(`SELECT a.id,a.email,a.organisation_name,a.status,a.device_id,a.device_public_key,a.device_name,a.revision,s.device_id AS session_device,s.kind AS session_kind,s.expires_at AS session_expires_at
+  const rows=await this.db.query(`SELECT a.id,a.email,a.organisation_name,a.status,a.created_at,a.device_id,a.device_public_key,a.device_name,a.revision,s.device_id AS session_device,s.kind AS session_kind,s.expires_at AS session_expires_at
    FROM vc_sessions s JOIN vc_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.expires_at>now() AND a.status='active'`,[hash(token)]);
   if(!rows.length) throw new LicenseError(401,"Please sign in again.");
-  const a=rows[0]; const licenses=await this.db.query("SELECT id,status,access_kind,expires_at,activated_at FROM vc_licenses WHERE account_id=$1 ORDER BY created_at DESC",[a.id]);
+  const a=rows[0]; const licenses=await this.db.query("SELECT id,status,access_kind,expires_at,activated_at,device_id FROM vc_licenses WHERE account_id=$1 ORDER BY created_at DESC",[a.id]);
   const organisation=await this.organisationAccess(a.id);
   if(organisation)licenses.push({id:organisation.id,status:'active',access_kind:'organisation',expires_at:organisation.unlimited_ai?null:organisation.paid_expires_at,organisation_name:organisation.name,activated_at:null});
   return {...a,licenses};
@@ -317,7 +315,7 @@ export class LicensingService {
    :"Activation code issued."};
  }
  async adminList() {
-  return {accounts:await this.db.query("SELECT a.id,a.email,a.organisation_name,a.status,a.device_name,a.device_id,a.created_at,(SELECT count(*)::int FROM vc_downloads d WHERE d.account_id=a.id) AS downloads FROM vc_accounts a ORDER BY a.created_at DESC LIMIT 500"),
+  return {accounts:await accountSummaries(this.db,500),
    licenses:await this.db.query("SELECT id,owner_email,account_id,device_id,status,access_kind,expires_at,activated_at,created_at FROM vc_licenses ORDER BY created_at DESC LIMIT 500")};
  }
  async adminAction(action: string,id: string) {

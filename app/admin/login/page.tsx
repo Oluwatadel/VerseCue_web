@@ -39,12 +39,12 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-5 py-16">
-      <div className="glass w-full max-w-sm rounded-3xl p-8">
+      <div className="glass w-full max-w-sm rounded-xl p-8">
         <div className="flex justify-center">
           <Logo iconSize={40} />
         </div>
         <h1 className="mt-6 text-center text-xl font-bold">Admin Sign In</h1>
-        <p className="mt-2 text-center text-sm text-slate-400">
+        <p className="mt-2 text-center text-sm text-slate-500">
           Account and licence administration
         </p>
 

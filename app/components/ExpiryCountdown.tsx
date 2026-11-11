@@ -1,0 +1,6 @@
+"use client";
+import {createContext,useContext,useEffect,useState} from 'react';
+const Clock=createContext<number|null>(null);
+export function CountdownClock({children}:{children:React.ReactNode}){const[now,setNow]=useState<number|null>(null);useEffect(()=>{setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);return <Clock.Provider value={now}>{children}</Clock.Provider>;}
+export function remainingTime(expiresAt:string,now:number){const seconds=Math.max(0,Math.floor((Date.parse(expiresAt)-now)/1000));if(!seconds)return 'Expired';const days=Math.floor(seconds/86400),hours=Math.floor(seconds%86400/3600),minutes=Math.floor(seconds%3600/60),rest=seconds%60;return days?days+'d '+hours+'h '+minutes+'m':hours+'h '+minutes+'m '+rest+'s';}
+export default function ExpiryCountdown({expiresAt,active=true}:{expiresAt:string|null|undefined;active?:boolean}){const now=useContext(Clock);if(!active)return <span className="text-slate-500">No active plan</span>;if(!expiresAt)return <span className="text-blue-700">No expiry</span>;const expired=now!==null&&Date.parse(expiresAt)<=now;return <span className={'whitespace-nowrap font-medium tabular-nums '+(expired?'text-red-700':'text-blue-700')} title={new Date(expiresAt).toLocaleString()}>{now===null?'Calculating…':remainingTime(expiresAt,now)}</span>;}

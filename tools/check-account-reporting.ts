@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import {readFile,readdir} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import {PGlite} from '@electric-sql/pglite';
+import {accountSummaries,subscriptionTotals} from '../lib/account-reporting';
+import type {LicensingDb} from '../lib/licensing-db';
+async function main(){const pg=new PGlite();try{for(const file of (await readdir('db')).filter(f=>/^\d+.*\.sql$/.test(f)).sort())await pg.exec(await readFile('db/'+file,'utf8'));const db={query:async(text:string,values:unknown[]=[]) => (await pg.query(text,values)).rows} as LicensingDb;
+const ids=Array.from({length:7},()=>randomUUID()),org=randomUUID(),future=new Date(Date.now()+86400000).toISOString(),past=new Date(Date.now()-86400000).toISOString();
+for(const [i,id] of ids.entries())await pg.query("INSERT INTO vc_accounts(id,email,password_hash,organisation_name,created_at)VALUES($1,$2,'fixture','Test Church','2026-01-01T10:00:00Z')",[id,'operator'+i+'@example.invalid']);
+for(const [i,expiry,kind] of [[0,future,'standard'],[1,past,'standard'],[2,null,'complimentary'],[3,future,'complimentary']] as const)await pg.query("INSERT INTO vc_licenses(id,owner_email,code_hash,account_id,expires_at,access_kind)VALUES($1,$2,$3,$4,$5,$6)",[randomUUID(),'operator'+i+'@example.invalid',randomUUID(),ids[i],expiry,kind]);
+await pg.query("UPDATE vc_accounts SET status='blocked' WHERE id=$1",[ids[6]]);
+for(const time of ['2026-02-01T00:00:00Z','2026-02-03T00:00:00Z'])await pg.query('INSERT INTO vc_downloads(id,account_id,created_at)VALUES($1,$2,$3)',[randomUUID(),ids[0],time]);
+for(const time of ['2026-02-01T00:00:00Z','2026-02-01T00:01:00Z'])await pg.query("INSERT INTO vc_usage_minutes(account_id,device_id,minute_utc,running_seconds,active_seconds)VALUES($1,'fixture',$2,60,30)",[ids[0],time]);
+await pg.query("INSERT INTO vc_organisations(id,name,owner_account_id,paid_expires_at,multi_device,device_limit)VALUES($1,'Test Church',$2,$3,true,2)",[org,ids[4],future]);
+for(const id of [ids[4],ids[5]])await pg.query('INSERT INTO vc_organisation_members(organisation_id,account_id)VALUES($1,$2)',[org,id]);
+for(const [id,organisation,plan,time] of [[ids[0],null,'monthly','2026-01-01'],[ids[0],null,'annual','2026-02-01'],[ids[4],org,'six-months','2026-03-01']] as const)await pg.query("INSERT INTO vc_payment_receipts(reference,transaction_id,account_id,plan_id,months,amount,currency,mode,organisation_id,created_at,computer_count)VALUES($1,$2,$3,$4,1,600000,'NGN','live',$5,$6,$7)",[randomUUID(),randomUUID(),id,plan,organisation,time,organisation?2:1]);
+const reports=await accountSummaries(db,500),get=(i:number)=>reports.find(r=>r.id===ids[i])!;
+assert.equal(get(0).downloads,2);assert.equal(new Date(get(0).first_download_at).toISOString(),'2026-02-01T00:00:00.000Z');assert.equal(new Date(get(0).last_download_at).toISOString(),'2026-02-03T00:00:00.000Z');assert.equal(get(0).running_seconds,120);assert.equal(get(0).active_seconds,60);assert.equal(get(0).plan_id,'annual');assert.equal(get(0).subscription_status,'active');assert.equal(new Date(get(0).registered_at).toISOString(),'2026-01-01T10:00:00.000Z');
+assert.equal(get(1).subscription_status,'expired');assert.equal(get(2).subscription_expires_at,null);assert.equal(get(3).subscription_status,'complimentary');assert.equal(new Date(get(3).subscription_expires_at).toISOString(),future);
+for(const i of [4,5]){assert.equal(get(i).plan_id,'six-months');assert.equal(get(i).subscription_source,'organisation');assert.equal(get(i).computer_count,2);}
+assert.equal(get(6).subscription_status,'blocked');const totals=await subscriptionTotals(db);assert.equal(totals.active_subscribers,3);assert.equal(totals.expired_subscribers,1);assert.equal(totals.complimentary_accounts,2);assert.equal(totals.restricted_accounts,1);assert.equal(totals.expiring_soon,3);
+console.log('PASS account reporting: actual registration/download dates, no aggregate multiplication, latest paid plan, organisation members, finite/ongoing complimentary access, expiry and whole-directory totals.');
+}finally{await pg.close();}}main().catch(error=>{console.error(error);process.exitCode=1;});
