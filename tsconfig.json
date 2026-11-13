@@ -30,7 +30,8 @@
     "**/*.tsx",
     ".next-dev/types/**/*.ts",
     ".next-verification/types/**/*.ts",
-    ".next-account-review/types/**/*.ts"
+    ".next-account-review/types/**/*.ts",
+    ".next-versevio-review/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

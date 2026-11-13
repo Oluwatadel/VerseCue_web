@@ -42,7 +42,7 @@ export default function VideoShowcase() {
           See it in action
         </p>
         <h2 className="mt-3 text-3xl font-bold sm:text-4xl">
-          The original VerseCue concept trailer
+          The original verseVIO concept trailer
         </h2>
       </div>
 

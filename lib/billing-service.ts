@@ -87,7 +87,7 @@ export class BillingService {
  private async seatPlan(plan:NonNullable<ReturnType<typeof quotePlan>>){
   const [cached]=await this.db.query('SELECT plan_code FROM vc_paystack_seat_plans WHERE mode=$1 AND plan_id=$2 AND computer_count=$3 AND amount=$4',[this.provider.mode,plan.id,plan.computerCount,plan.amount]);
   if(cached)return cached.plan_code as string;
-  const remote=await this.provider.call('/plan',{name:`VerseCue AI ${plan.computerCount} PCs / ${plan.name}`,amount:plan.amount,interval:plan.interval,currency:'NGN'});
+  const remote=await this.provider.call('/plan',{name:`verseVIO AI ${plan.computerCount} PCs / ${plan.name}`,amount:plan.amount,interval:plan.interval,currency:'NGN'});
   if(!/^PLN_[a-zA-Z0-9]+$/.test(remote.plan_code||'')||Number(remote.amount)!==plan.amount||remote.currency!=='NGN'||remote.interval!==plan.interval)throw new LicenseError(503,'The recurring computer plan could not be validated. Choose one-time payment or contact support.');
   const [saved]=await this.db.query(`INSERT INTO vc_paystack_seat_plans(mode,plan_id,computer_count,amount,plan_code) VALUES($1,$2,$3,$4,$5)
    ON CONFLICT(mode,plan_id,computer_count) DO UPDATE SET amount=EXCLUDED.amount,plan_code=EXCLUDED.plan_code RETURNING plan_code`,[this.provider.mode,plan.id,plan.computerCount,plan.amount,remote.plan_code]);return saved.plan_code as string;
@@ -101,7 +101,7 @@ export class BillingService {
   if(previous[0]?.status==='test'){await this.testReceiptEmail(reference,previous[0]);return this.testResult();}
   if(previous[0]?.status==='review'){await this.reviewPayment(reference,previous[0]);return {message:'Payment received. Support must review a computer-count change before activation. Your existing access is retained.',credited:false};}
   if(previous[0]&&previous[0].status!=='paid')throw new ReversedPaymentError();
-  if(previous[0]){await this.receiptEmail(reference,previous[0]);return {message:'Payment verified. Return to VerseCue; AI access will activate automatically.',credited:false};}
+  if(previous[0]){await this.receiptEmail(reference,previous[0]);return {message:'Payment verified. Return to verseVIO; AI access will activate automatically.',credited:false};}
   const verified=await this.provider.call('/transaction/verify/'+encodeURIComponent(reference));
   if(verified.status!=='success')throw new LicenseError(409,"Payment is not verified yet. Pending, abandoned and failed payments do not activate AI.");
   if(verified.reference!==reference||verified.currency!=='NGN'||verified.domain!==this.provider.mode||!/^\d{1,30}$/.test(String(verified.id)))throw new LicenseError(400,"Payment verification details do not match.");
@@ -150,7 +150,7 @@ export class BillingService {
     await this.reviewPayment(reference,order);
     return {message:'Payment received. Support must review a computer-count change before activation. Your existing access is retained.',credited:false};
    }
-   await this.receiptEmail(reference,order);return {message:'Payment verified. Organisation AI access is ready for the purchased computers. Return to VerseCue to activate.',credited:result[3].length>0};
+   await this.receiptEmail(reference,order);return {message:'Payment verified. Organisation AI access is ready for the purchased computers. Return to verseVIO to activate.',credited:result[3].length>0};
   }
   const credited=await this.db.transaction([
    ...this.paymentGuard(reference),
@@ -168,10 +168,10 @@ export class BillingService {
   ]);
   await this.rejectReversed(reference);
   await this.receiptEmail(reference,order);
-  return {message:'Payment verified. Return to VerseCue; AI access will activate automatically.',credited:credited[3].length>0};
+  return {message:'Payment verified. Return to verseVIO; AI access will activate automatically.',credited:credited[3].length>0};
  }
  private testResult(){return {message:'Paystack test payment verified. No real money was charged and no live AI access was activated.',credited:false,testMode:true};}
- private testReceiptEmail(reference:string,order:Row){return this.paymentAcknowledgment('test-payment:'+reference,order.account_id,order.email,'VerseCue test payment confirmed',`This was a Paystack TEST payment for NGN ${(Number(order.amount)/100).toFixed(2)}. No real money was charged and no live AI access was activated. Reference: ${reference}.`);}
+ private testReceiptEmail(reference:string,order:Row){return this.paymentAcknowledgment('test-payment:'+reference,order.account_id,order.email,'verseVIO test payment confirmed',`This was a Paystack TEST payment for NGN ${(Number(order.amount)/100).toFixed(2)}. No real money was charged and no live AI access was activated. Reference: ${reference}.`);}
  private paymentGuard(reference:string){return [
   {text:'INSERT INTO vc_payment_guards(reference,mode) VALUES($1,$2) ON CONFLICT(reference,mode) DO NOTHING',values:[reference,this.provider.mode]},
   {text:'SELECT reference FROM vc_payment_guards WHERE reference=$1 AND mode=$2 FOR UPDATE',values:[reference,this.provider.mode]}
@@ -192,21 +192,21 @@ export class BillingService {
   const plan=BILLING_PLANS.find(plan=>plan.id===order.plan_id);
   const amount=new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(Number(order.amount)/100);
   const text=[
-   'Thank you for choosing VerseCue.',
-   'We acknowledge receipt of your verified payment for VerseCue AI access.',
+   'Thank you for choosing verseVIO.',
+   'We acknowledge receipt of your verified payment for verseVIO AI access.',
    `Amount received: ${amount}`,
    `Plan: ${plan?.name||order.plan_id}`,
    `Access period purchased: ${order.months} month(s)`,
    `Computer allowance purchased: ${order.computer_count||1}`,
    `Payment reference: ${reference}`,
-   review?'Your payment was received, but a computer-count change requires support review before activation. Your existing access is retained.':'Your AI access is ready on your VerseCue account.',
+   review?'Your payment was received, but a computer-count change requires support review before activation. Your existing access is retained.':'Your AI access is ready on your verseVIO account.',
    review?`Contact support: ${siteOrigin()}/account/support`:`To activate, sign in at ${siteOrigin()}/account/upgrade and choose Activate in desktop app or Email activation key. An activation key is emailed only when you choose that option.`,
-   `Not installed yet? Download VerseCue at ${siteOrigin()}/download and sign in with this email. Installing the app later does not postpone your subscription.`,
+   `Not installed yet? Download verseVIO at ${siteOrigin()}/download and sign in with this email. Installing the app later does not postpone your subscription.`,
    `Manage your plan and renewal preference: ${siteOrigin()}/account/upgrade`,
    'Keep this acknowledgment for your records. Bible lookup and presentation tools remain free.',
-   'The VerseCue team'
+   'The verseVIO team'
   ].join('\n\n');
-  await this.paymentAcknowledgment((review?'payment-review:':'payment:')+reference,order.account_id,order.email,review?'VerseCue payment received — support review pending':'VerseCue payment received — thank you',text);
+  await this.paymentAcknowledgment((review?'payment-review:':'payment:')+reference,order.account_id,order.email,review?'verseVIO payment received — support review pending':'verseVIO payment received — thank you',text);
  }
  async subscriptionEvent(event:string,data:any){
   const code=String(data.subscription_code||'');if(!/^SUB_[a-zA-Z0-9]+$/.test(code))throw new LicenseError(400,'Invalid subscription event.');

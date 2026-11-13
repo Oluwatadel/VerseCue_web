@@ -35,7 +35,7 @@ export default function Waitlist() {
           Early access
         </p>
         <h2 className="mt-3 text-3xl font-bold sm:text-4xl">
-          Join the VerseCue waitlist
+          Join the verseVIO waitlist
         </h2>
         <p className="mt-3 text-slate-600">
           For churches and media teams in Nigeria and internationally. Register your interest in the Windows desktop release and receive early-access updates.

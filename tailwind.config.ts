@@ -1,3 +1,2 @@
 import type { Config } from "tailwindcss";
-const config: Config = { content: ["./app/**/*.{js,ts,jsx,tsx,mdx}"], theme: { extend: { colors: { verse: {blue:"#2563eb",purple:"#6d28d9",ink:"#06142f"} } } }, plugins: [] };
-export default config;
+const config:Config={content:["./app/**/*.{js,ts,jsx,tsx,mdx}"],theme:{extend:{colors:{verse:{blue:"#0B1F3A",purple:"#087F8C",ink:"#101828",gold:"#E7B85C"},blue:{50:"#F8F6F0",100:"#F2E8D0",200:"#E8D9B6",300:"#E7B85C",400:"#667085",500:"#164060",600:"#0B1F3A",700:"#101828",800:"#0B1F3A",900:"#101828"},cyan:{500:"#087F8C"}}}},plugins:[]};export default config;

@@ -1,16 +1,16 @@
 // Public product facts checked against the Windows desktop source on 29 October 2026.
 // Keep proposed prices and unreleased features out of these public claims.
 export const PRODUCT = {
-  name: "VerseCue",
-  title: "VerseCue — Live Scripture & Church Media for Windows",
-  description: "A free Windows desktop workspace for Bible lookup, projection, songs, slides and video, with optional activated AI transcription and automatic verse detection.",
+  name: "verseVIO",
+  title: "verseVIO — The Word, Made Visible.",
+  description: "A free Windows desktop workspace for Bible lookup, projection, songs, slides and video, with activated AI transcription, automatic verse detection and mobile control.",
   platform: "Windows desktop",
   availability: "Windows installer coming soon",
   updated: "29 October 2026",
 };
 
 export const FEATURES = [
-  { icon: "🎙", title: "Local speech recognition", description: "Optional activated AI transcription uses the included VerseCue Clarity model. Optional alternatives download from a dropdown and can be deleted when inactive." },
+  { icon: "🎙", title: "Local speech recognition", description: "Optional activated AI transcription uses the included verseVIO Clarity model. Optional alternatives download from a dropdown and can be deleted when inactive." },
   { icon: "🔎", title: "Scripture suggestions", description: "Follow live transcription, detect spoken Bible references, and find candidate passages from paraphrased Scripture. Review every match before displaying it." },
   { icon: "🖥", title: "Preview before projection", description: "Click a recent detection once to preview it. Double-click or use Display to send it to the verse display. The operator stays in control." },
   { icon: "📖", title: "Translations that stay in step", description: "Import supported XML or JSON Bible files. Save a default translation change to update manual selections, queued Bible selections and transcription detections." },
@@ -32,11 +32,11 @@ export const STEPS = [
 ];
 
 export const FAQS = [
-  { question: "Is VerseCue a website or a desktop app?", answer: "VerseCue is a Windows desktop application. This website provides free downloads, optional AI activation, user guides and support. It does not run live transcription or control a church projector." },
+  { question: "Is verseVIO a website or a desktop app?", answer: "verseVIO is a Windows desktop application. This website provides free downloads, optional AI activation, user guides and support. It does not run live transcription or control a church projector." },
   { question: "Does it display verses automatically?", answer: "The main workflow is operator controlled: a single click previews a recent detection; a double-click or Display action projects it. Speech and Scripture suggestions can be inaccurate, so review the reference, translation and verse text." },
   { question: "Can the desktop app work without internet?", answer: "Bible lookup, projection, songs, slides and local video work offline for free once your files are installed. Optional AI features require initial website activation and desktop sign-in. Signed offline AI access lasts up to 72 hours by default, after which AI must reconnect. Free features keep working if AI expires. Model downloads and online resources need internet." },
-  { question: "Which speech models and languages are available?", answer: "VerseCue Clarity is the bundled, English-focused default. VerseCue Swift English, Focus English and Global multilingual are optional downloads. A multilingual speech model does not guarantee reliable Bible-reference detection in every language. Changing from VerseCue Clarity may reduce transcription or Scripture-detection accuracy; test your own sermon audio." },
-  { question: "Which Bible translations can I use?", answer: "Import compatible Bible files in the supported XML or JSON formats. Availability depends on the files and permissions you hold. A Bible import does not grant redistribution rights, and VerseCue does not promise a bundled catalogue of copyrighted translations." },
+  { question: "Which speech models and languages are available?", answer: "verseVIO Clarity is the bundled, English-focused default. verseVIO Swift English, Focus English and Global multilingual are optional downloads. A multilingual speech model does not guarantee reliable Bible-reference detection in every language. Changing from verseVIO Clarity may reduce transcription or Scripture-detection accuracy; test your own sermon audio." },
+  { question: "Which Bible translations can I use?", answer: "Import compatible Bible files in the supported XML or JSON formats. Availability depends on the files and permissions you hold. A Bible import does not grant redistribution rights, and verseVIO does not promise a bundled catalogue of copyrighted translations." },
   { question: "Does changing the translation affect manual Bible selections?", answer: "Yes. Choose a default translation and click Save. The saved choice is used for manual browsing/selections, queued Bible passages and transcription detections. Verify the next preview before displaying it." },
   { question: "Can I preview backgrounds and screensavers?", answer: "Yes. Appearance changes open a preview beside the settings. Verse backgrounds show your selected Scripture, or a sample verse, with the chosen dimming. Screensavers preview without verse text; pictures, GIFs and video loops are supported. These previews do not change the live output until you save." },
   { question: "Can I use my existing slides, songs and video sources?", answer: "The desktop workspace includes songs and lyric sections, supported PowerPoint imports, local video playback, and available live camera/capture/screen sources. File formats and device compatibility should be checked on your service computer before live use." },

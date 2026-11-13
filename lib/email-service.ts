@@ -7,7 +7,7 @@ export class EmailService {
  constructor(private db:LicensingDb,private key=process.env.RESEND_API_KEY||"",private from=process.env.EMAIL_FROM||"",private request:typeof fetch=fetch){this.key=key.trim();this.from=from.trim();}
  get configured(){return !!this.key&&/^[^\r\n]+@[^\r\n]+$/.test(this.from);}
  async queue(id:string,accountId:string|null,email:string,subject:string,text:string){await this.db.query("INSERT INTO vc_email_outbox(id,account_id,recipient,subject,text_body) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING",[id,accountId,email,subject,text]);}
- async welcome(account:{id:string;email:string;organisation_name:string}){return this.queue("welcome:"+account.id,account.id,account.email,"Welcome to VerseCue",`Welcome, ${account.organisation_name}. Your free account is ready. Download VerseCue at ${siteOrigin()}/download. AI assistance is optional and can be activated later.`);}
+ async welcome(account:{id:string;email:string;organisation_name:string}){return this.queue("welcome:"+account.id,account.id,account.email,"Welcome to verseVIO",`Welcome, ${account.organisation_name}. Your free account is ready. Download verseVIO at ${siteOrigin()}/download. AI assistance is optional and can be activated later.`);}
  async dispatch(limit=5,onlyId:string|null=null){
   await this.db.query(`UPDATE vc_email_outbox mail SET state='cancelled',text_body='' WHERE activation_license_id IS NOT NULL AND state='queued'
    AND NOT EXISTS(SELECT 1 FROM vc_licenses l WHERE l.id=mail.activation_license_id AND l.status='active' AND (l.expires_at IS NULL OR l.expires_at>now()))`);

@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     if (!inserted) {
       return NextResponse.json(
         {
-          message: "You're already on the VerseCue waitlist.",
+          message: "You're already on the verseVIO waitlist.",
         },
         { status: 200 }
       );
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        message: "You're on the VerseCue waitlist!",
+        message: "You're on the verseVIO waitlist!",
       },
       { status: 201 }
     );

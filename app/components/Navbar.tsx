@@ -24,7 +24,7 @@ export default function Navbar() {
         <a
           href="/"
           className="flex items-center"
-          aria-label="VerseCue home"
+          aria-label="verseVIO home"
           onClick={() => setOpen(false)}
         >
           <Logo iconSize={34} />

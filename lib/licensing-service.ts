@@ -112,13 +112,22 @@ export class LicensingService {
  }
  async recordDownload(token: string) {
   const account=await this.account(token);
-  if(account.session_kind!=="web")throw new LicenseError(401,"Sign in on the website to download VerseCue.");
+  if(account.session_kind!=="web")throw new LicenseError(401,"Sign in on the website to download verseVIO.");
   if(!account.organisation_name?.trim())throw new LicenseError(400,"Add your organisation name on your account page before downloading.");
   await this.db.query("INSERT INTO vc_downloads(id,account_id) VALUES($1,$2)",[randomUUID(),account.id]);
  }
  async freeDesktopLogin(input: Record<string,any>) {
   const account=await this.credentials(input.email,input.password);const d=await this.proof(input.device,account.email);
-  if(!account.organisation_name?.trim())throw new LicenseError(403,"Add your organisation name on the website before signing into VerseCue.");
+  return this.bindDesktopAccount(account,d);
+ }
+ async browserDevice(value:unknown){return this.proof(value,"");}
+ async browserDesktopLogin(accountId:string,d:Device){
+  const [account]=await this.db.query("SELECT * FROM vc_accounts WHERE id=$1 AND status='active'",[accountId]);
+  if(!account)throw new LicenseError(403,"This account is unavailable.");
+  return this.bindDesktopAccount(account,d);
+ }
+ private async bindDesktopAccount(account:Row,d:Device){
+  if(!account.organisation_name?.trim())throw new LicenseError(403,"Add your organisation name on the website before signing into verseVIO.");
   const rows=await this.db.query(`UPDATE vc_accounts SET device_id=$2,device_public_key=$3,device_name=$4
    WHERE id=$1 AND status='active' AND (device_id IS NULL OR (device_id=$2 AND device_public_key=$3))
    RETURNING id,email,organisation_name`,[account.id,d.id,d.publicKey,d.name]);
@@ -173,7 +182,7 @@ export class LicensingService {
  }
  async desktopAiContext(token:string){
   const account=await this.account(token);
-  if(account.session_kind!=="free"||!await this.registeredSessionComputer(account))throw new LicenseError(401,"Sign in to VerseCue again.");
+  if(account.session_kind!=="free"||!await this.registeredSessionComputer(account))throw new LicenseError(401,"Sign in to verseVIO again.");
   const active=account.licenses.some(license=>license.status==='active'&&(!license.expires_at||new Date(license.expires_at).getTime()>Date.now())&&
    (!license.device_id||license.device_id===account.session_device));
   return {account,active};
@@ -224,7 +233,7 @@ export class LicensingService {
    WHERE l.owner_email=a.email AND l.code_hash=$2 AND l.status='active' AND (l.expires_at IS NULL OR l.expires_at>now())
    AND (l.account_id IS NULL OR l.account_id=a.id) AND (l.device_id IS NULL OR l.device_id=a.device_id) RETURNING l.id`,[account.id,hash(code)]);
   if(!rows.length)throw new LicenseError(403,"This activation code is invalid, expired or belongs to another account.");
-  return {message:account.device_id?"AI activation updated for your registered computer. Sign in to VerseCue to refresh access.":"AI activated. Sign in to the desktop app to register your first computer and unlock AI."};
+  return {message:account.device_id?"AI activation updated for your registered computer. Sign in to verseVIO to refresh access.":"AI activated. Sign in to the desktop app to register your first computer and unlock AI."};
  }
  async webLogin(email: unknown,password: unknown) {
   const account=await this.credentials(email,password);
@@ -276,7 +285,7 @@ export class LicensingService {
   if(key.length!==32 || !this.config.modelKeyId || !this.config.signingKey) throw new LicenseError(503,"Activation signing is not configured.");
   const now=Date.now(); const expiry=Math.min(now+Math.min(this.config.offlineHours || 72,168)*3600000,account.expires_at ? new Date(account.expires_at).getTime() : Infinity);
   const wrapped=publicEncrypt({key:createPublicKey({key:Buffer.from(d.publicKey,"base64"),format:"der",type:"spki"}),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:"sha256"},key).toString("base64");
-  const payload=Buffer.from(JSON.stringify({version:1,iss:"versecue",aud:"desktop",features:["ai-transcription","automatic-verse-detection"],accountId:account.id,licenseId:account.license_id,deviceId:d.id,revision:account.revision,
+  const payload=Buffer.from(JSON.stringify({version:1,iss:"versecue",aud:"desktop",features:["ai-transcription","automatic-verse-detection","mobile-remote"],accountId:account.id,licenseId:account.license_id,deviceId:d.id,revision:account.revision,
    issuedAt:new Date(now).toISOString(),expiresAt:new Date(expiry).toISOString(),modelKeyId:this.config.modelKeyId,wrappedModelKey:wrapped})).toString("base64url");
   const signature=sign("sha256",Buffer.from(payload),{key:createPrivateKey(this.config.signingKey.replace(/\\n/g,"\n")),padding:constants.RSA_PKCS1_PSS_PADDING,saltLength:32}).toString("base64url");
   return `${payload}.${signature}`;
@@ -303,10 +312,10 @@ export class LicensingService {
    {text:"INSERT INTO vc_license_audit(id,action,subject) VALUES($1,$2,$3)",values:[randomUUID(),complimentary?"grant-complimentary":"issue",email]},
    {text:"UPDATE vc_email_outbox SET state='cancelled',text_body='' WHERE activation_license_id IN (SELECT id FROM vc_licenses WHERE owner_email=$1 AND status='revoked') AND state='queued'",values:[email]},
    {text:`INSERT INTO vc_email_outbox(id,account_id,recipient,subject,text_body,activation_license_id)
-    SELECT $1,a.id,$2,'Your VerseCue AI activation',CASE WHEN $3::boolean AND a.id IS NOT NULL
+    SELECT $1,a.id,$2,'Your verseVIO AI activation',CASE WHEN $3::boolean AND a.id IS NOT NULL
      THEN $4 ELSE $5 END,$6 FROM (VALUES(1)) seed(v) LEFT JOIN vc_accounts a ON a.email=$2`,
-    values:['activation:'+id,email,complimentary,`Complimentary AI access has been granted to your VerseCue account. No code is needed: open VerseCue and choose Activate AI. Manage any existing auto-renewal at ${siteOrigin()}/account/upgrade.`,
-     `Your VerseCue AI activation code is ${code}. It is assigned to ${email}. Create a free account with this email if needed, sign in at ${siteOrigin()}/account, and enter the code under Activate or renew AI. Then open VerseCue to activate on your registered computer. ${expires?'Licence expiry: '+expires.toISOString()+'.':''}`,id]},
+    values:['activation:'+id,email,complimentary,`Complimentary AI access has been granted to your verseVIO account. No code is needed: open verseVIO and choose Activate AI. Manage any existing auto-renewal at ${siteOrigin()}/account/upgrade.`,
+     `Your verseVIO AI activation code is ${code}. It is assigned to ${email}. Create a free account with this email if needed, sign in at ${siteOrigin()}/account, and enter the code under Activate or renew AI. Then open verseVIO to activate on your registered computer. ${expires?'Licence expiry: '+expires.toISOString()+'.':''}`,id]},
   ]);
   const attached=complimentary && !!issued[1][0]?.account_id;
   return {id,code,email,complimentary,attached,emailQueued:true,message:complimentary

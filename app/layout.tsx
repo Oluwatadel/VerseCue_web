@@ -3,7 +3,7 @@ import "./globals.css";
 import {CountdownClock} from "./components/ExpiryCountdown";
 import { PRODUCT } from "../lib/product";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://versecue.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://verse-cue-web.vercel.app";
 const title = PRODUCT.title;
 const description = PRODUCT.description;
 
@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
-  applicationName: "VerseCue",
+  applicationName: "verseVIO",
   keywords: [
-    "VerseCue",
+    "verseVIO",
     "church media",
     "Scripture presentation",
     "sermon transcription",
@@ -29,14 +29,14 @@ export const metadata: Metadata = {
     title,
     description,
     url: siteUrl,
-    siteName: "VerseCue",
+    siteName: "verseVIO",
     type: "website",
     images: [
       {
         url: "/opengraph-image.png",
         width: 1254,
         height: 1254,
-        alt: "VerseCue logo — Right Verse. Right Time.",
+        alt: "verseVIO logo — The Word, Made Visible.",
       },
     ],
   },

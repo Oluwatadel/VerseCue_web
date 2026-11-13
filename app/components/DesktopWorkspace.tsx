@@ -8,7 +8,7 @@ const VIEWS = [
   { label: "Theme preview", src: "/screenshots/theme-preview.png", width: 1500, height: 900, description: "Compare a pending theme beside Preferences. Save applies it; Discard keeps the active theme." },
   { label: "Verse backgrounds", src: "/screenshots/background-preview.png", width: 900, height: 700, description: "Inspect the background behind verse text and adjust dimming before changing the live output." },
   { label: "Motion screensavers", src: "/screenshots/screensaver-preview.png", width: 900, height: 700, description: "See the selected screensaver without verse text. In the desktop app, moving media previews silently on repeat." },
-  { label: "Speech models", src: "/screenshots/speech-models.png", width: 900, height: 700, description: "VerseCue Clarity is bundled. Choose an optional model from the dropdown to download it, then Save to activate it." },
+  { label: "Speech models", src: "/screenshots/speech-models.png", width: 1500, height: 700, description: "verseVIO Clarity is bundled. Choose an optional model from the dropdown to download it, then Save to activate it." },
 ];
 
 export default function DesktopWorkspace() {
@@ -28,7 +28,7 @@ export default function DesktopWorkspace() {
       <figure className="glass mt-5 overflow-hidden rounded-xl">
         <div className="flex min-h-0 justify-center bg-slate-950/70 p-2 sm:p-4">
           <Image key={view.src} src={view.src} width={view.width} height={view.height} sizes="(max-width: 768px) 100vw, 1200px"
-            alt={`VerseCue Windows desktop: ${view.description}`} className="h-auto max-h-[680px] w-auto max-w-full rounded-lg object-contain" />
+            alt={`verseVIO Windows desktop: ${view.description}`} className="h-auto max-h-[680px] w-auto max-w-full rounded-lg object-contain" />
         </div>
         <figcaption className="border-t border-slate-200 p-5">
           <p className="text-sm leading-6 text-slate-700">{view.description}</p>

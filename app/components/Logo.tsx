@@ -1,14 +1,8 @@
 import Image from "next/image";
 
 /** Use the supplied complete logo consistently across public and admin pages. */
-export function Logo({ className = "", iconSize = 36 }: { className?: string; iconSize?: number }) {
-  const size = Math.max(64, iconSize * 2);
-  return (
-    <span className={`inline-flex shrink-0 overflow-hidden rounded-xl bg-white ${className}`}>
-      <Image src="/versecue-logo.png" alt="VerseCue" width={size} height={size}
-        priority className="h-auto shrink-0 object-contain" />
-    </span>
-  );
+export function Logo({ className = "", iconSize = 36, wordmark = true }: { className?: string; iconSize?: number; wordmark?: boolean }) {
+  return <span className={`inline-flex shrink-0 items-center gap-2 ${className}`}><Image src="/versevio-icon.png" alt="" width={iconSize} height={iconSize} priority className="shrink-0 object-contain"/>{wordmark&&<span className="text-xl font-bold tracking-tight text-verse-ink">verse<span className="text-[#765314]">VIO</span></span>}</span>;
 }
 
 /**

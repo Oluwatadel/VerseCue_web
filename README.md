@@ -145,3 +145,7 @@ The separate `../versecue-remote` project contains the native Android/iPhone con
 ## Reviewed speech-test reports
 
 Optional desktop recordings can be reviewed and explicitly shared with administrators. See [setup, storage and retention](TEST-REPORTS.md) before enabling audio uploads.
+
+## verseVIO rebrand and browser desktop sign-in
+
+Apply migration 015 with npm run db:migrate before deploying the updated desktop/browser flow. Configure MOBILE_ANDROID_DOWNLOAD_URL after publishing the APK; downloads and LAN control require active paid or complimentary access. Keep production signing/model keys and actual deployment origin stable. See ../VERSEVIO-ROLLOUT.md.
