@@ -11,24 +11,20 @@ export default function VideoShowcase() {
     const video = videoRef.current;
     if (!video) return;
 
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-
-    if (!prefersReducedMotion) {
-      video.play().then(
-        () => setPlaying(true),
-        () => setPlaying(false) // autoplay blocked by the browser — user can press play
-      );
-    }
+    const pauseHidden = () => {if (document.visibilityState === "hidden") video.pause();};
+    const observer = new IntersectionObserver(entries => {
+      if (!entries[0]?.isIntersecting) video.pause();
+    });
+    observer.observe(video);
+    document.addEventListener("visibilitychange", pauseHidden);
+    return () => {observer.disconnect();document.removeEventListener("visibilitychange", pauseHidden);};
   }, []);
 
   function togglePlay() {
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
-      video.play();
-      setPlaying(true);
+      void video.play().catch(() => setPlaying(false));
     } else {
       video.pause();
       setPlaying(false);
@@ -55,9 +51,8 @@ export default function VideoShowcase() {
             src="/video/versecue-advert.mp4"
             poster="/screenshots/theme-preview.png"
             muted
-            loop
             playsInline
-            preload="metadata"
+            preload="none"
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
           />

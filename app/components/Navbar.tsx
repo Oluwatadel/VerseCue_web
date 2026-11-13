@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 
@@ -11,15 +11,42 @@ const NAV_LINKS = [
   { href: "/docs", label: "Guides" },
   { href: "/support", label: "Support" },
   { href: "/about", label: "About" },
-  { href: "/account", label: "Account" },
 ];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    let pending: AbortController | null = null;
+    let busy = false;
+    let lastCheck = 0;
+    async function refreshSession() {
+      if (busy || document.visibilityState === "hidden" || Date.now() - lastCheck < 30000) return;
+      busy = true; lastCheck = Date.now();
+      const controller = new AbortController();
+      pending = controller;
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch("/api/account", {cache: "no-store", signal: controller.signal});
+        if (!cancelled && !controller.signal.aborted) {
+          if (response.ok) setSignedIn(true);
+          else if (response.status === 401 || response.status === 403) setSignedIn(false);
+        }
+      } catch { /* Keep navigation usable when the account service is offline. */ }
+      finally {clearTimeout(timeout);busy = false;}
+    }
+    void refreshSession();
+    window.addEventListener("focus", refreshSession);
+    return () => {cancelled = true;pending?.abort();window.removeEventListener("focus", refreshSession);};
+  }, [pathname]);
+  const links = [...NAV_LINKS, signedIn
+    ? {href: "/account", label: "Dashboard"}
+    : {href: "/account/login", label: "Login"}];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
       <nav className="container-x flex items-center justify-between py-4">
         <a
           href="/"
@@ -31,7 +58,7 @@ export default function Navbar() {
         </a>
 
         <div className="hidden items-center gap-5 text-sm text-slate-600 lg:flex">
-          {NAV_LINKS.map((link) => (
+          {links.map((link) => (
             <a
               key={link.href}
               href={link.href}
@@ -72,7 +99,7 @@ export default function Navbar() {
       {open && (
         <div id="mobile-menu" className="border-t border-slate-200 lg:hidden">
           <div className="container-x flex flex-col gap-1 py-4 text-slate-600">
-            {NAV_LINKS.map((link) => (
+            {links.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
