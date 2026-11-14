@@ -4,7 +4,7 @@ The website and desktop use the existing PostgreSQL database for product audit h
 
 ## Before deployment
 
-Run `npm run db:migrate` from the website directory **before deploying the updated website**. Migration `016-audit-and-church-locations.sql` adds location fields, the audit table and indexes, safe transactional database triggers, and a bounded import of recent administrative history. It can be rerun without overwriting church data. No hosted migration, deployment or Git push was performed during implementation.
+Run `npm run db:migrate` from the website directory **before deploying the updated website**. Migration `016-audit-and-church-locations.sql` adds location fields, the audit table and indexes, safe transactional database triggers, and a bounded import of recent administrative history. It can be rerun without overwriting church data. Migration 016 was applied atomically on 14 November 2026 while repairing missing-schema account failures. No existing account, payment or access grant was changed. No website code deployment or Git push was performed.
 
 The next desktop build includes best-effort online app-open and AI enable/disable events. Existing desktop versions still produce server-side sign-in and activation events after the migration, but do not send the new client milestone events. No new installer was packaged.
 
