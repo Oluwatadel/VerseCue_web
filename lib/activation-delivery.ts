@@ -27,7 +27,20 @@ export class ActivationDelivery{
  {text:`INSERT INTO vc_email_outbox(id,account_id,recipient,subject,text_body) VALUES($1,$2,$3,'Your verseVIO activation key',$4)`,values:[mailId,account.id,account.email,`Your verseVIO activation key is ${code}. Open verseVIO, sign in as ${account.email}, choose Activate AI → Use activation key, and paste this key. It is valid for 24 hours and can be redeemed on one registered computer. It does not extend your subscription or increase your computer allowance. Current paid or complimentary access is checked when used. Keep this key private.`]}]);
  try{await this.mail.dispatch(1,mailId);}catch{/* Durable outbox retries through the existing email job. */}
  const [mail]=await this.db.query('SELECT state FROM vc_email_outbox WHERE id=$1',[mailId]);return {email:account.email,delivery:mail?.state==='sent'?'sent':'queued',message:mail?.state==='sent'?'Activation key sent to your account email.':'Activation key email is queued. Delivery is pending; contact support if it does not arrive.'};}
- async redeem(token:string,value:unknown,proof:unknown){const {account,device}=await this.licensing.activationDevice(token,proof);if(!this.deviceAccess(account,device.id))throw new LicenseError(403,'Your paid or complimentary AI access is no longer active on this computer.');await this.licensing.rate('redeem-ai-key:'+account.id,10);const code=String(value||'').replace(/[^a-z0-9]/gi,'').toUpperCase();if(!/^VCK[A-F0-9]{32}$/.test(code))throw new LicenseError(400,'Enter the activation key emailed by verseVIO.');
+ async redeem(token:string,value:unknown,proof:unknown){const {account,device}=await this.licensing.activationDevice(token,proof);await this.licensing.rate('redeem-ai-key:'+account.id,10);const code=String(value||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
+ // Admin grants establish access; emailed keys only transfer access that already exists.
+ // Validate the signed-in account and signed device proof before accepting either kind.
+ if(/^VC[A-F0-9]{36}$/.test(code)){
+  this.licensing.requireActivationConfiguration();
+  const [grant]=await this.db.query(`WITH owner AS (SELECT id,email FROM vc_accounts WHERE id=$1 AND status='active' AND device_id=$3 FOR UPDATE)
+   UPDATE vc_licenses l SET account_id=a.id,device_id=$3,activated_at=COALESCE(l.activated_at,now()) FROM owner a
+   WHERE l.owner_email=a.email AND l.code_hash=$2 AND l.status='active' AND (l.expires_at IS NULL OR l.expires_at>now())
+   AND (l.account_id IS NULL OR l.account_id=a.id) AND (l.device_id IS NULL OR l.device_id=$3) RETURNING l.id`,[account.id,hash(code),device.id]);
+  if(!grant)throw new LicenseError(403,'This admin activation code is invalid, expired, revoked, assigned to another account or bound to another computer. Sign in with the email used for the grant, or contact your administrator.');
+  return {redeemed:true};
+ }
+ if(!/^VCK[A-F0-9]{32}$/.test(code))throw new LicenseError(400,'Enter an admin activation code (VC-) or an emailed activation key (VCK-).');
+ if(!this.deviceAccess(account,device.id))throw new LicenseError(403,'Your paid or complimentary AI access is no longer active on this computer. Ask your administrator to renew access or choose a plan.');
  const [key]=await this.db.query(`UPDATE vc_activation_keys SET device_id=$3,redeemed_at=COALESCE(redeemed_at,now())
  WHERE code_hash=$1 AND account_id=$2 AND expires_at>now() AND (device_id IS NULL OR device_id=$3) RETURNING id`,[hash(code),account.id,device.id]);if(!key)throw new LicenseError(403,'This key is expired, belongs to another account or was used on another computer.');return {redeemed:true};}
 }

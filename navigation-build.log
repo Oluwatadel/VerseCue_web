@@ -1,0 +1,137 @@
+
+> versecue-web@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.31
+  - Environments: .env.local
+  - Experiments (use with caution):
+    · cpus
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+
+   We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
+   The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+   	- include was updated to add '.next-navigation-review/types/**/*.ts'
+
+   Collecting page data ...
+   Generating static pages (0/92) ...
+   Generating static pages (23/92) 
+   Generating static pages (46/92) 
+   Generating static pages (69/92) 
+ ✓ Generating static pages (92/92)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                  Size     First Load JS
+┌ ○ /                                        2.85 kB         104 kB
+├ ○ /_not-found                              876 B          88.1 kB
+├ ○ /about                                   189 B           101 kB
+├ ○ /account                                 3.42 kB        99.3 kB
+├ ○ /account/activate                        142 B          87.3 kB
+├ ○ /account/connect-desktop                 1.26 kB        97.1 kB
+├ ○ /account/forgot-password                 917 B          96.8 kB
+├ ○ /account/login                           1.79 kB        97.7 kB
+├ ○ /account/mobile-download                 1 kB           96.9 kB
+├ ○ /account/organisation                    2.06 kB        97.9 kB
+├ ○ /account/profile                         1.81 kB        97.7 kB
+├ ○ /account/register                        1.95 kB        97.8 kB
+├ ○ /account/reset-password                  985 B          96.9 kB
+├ ○ /account/support                         143 B          98.5 kB
+├ ○ /account/test-reports                    138 B          92.1 kB
+├ ○ /account/upgrade                         9.97 kB         106 kB
+├ ○ /admin                                   140 B           101 kB
+├ ○ /admin/analytics                         143 B           101 kB
+├ ○ /admin/licenses                          4.61 kB         100 kB
+├ ○ /admin/login                             1.7 kB           94 kB
+├ ○ /admin/messages                          2.42 kB        89.6 kB
+├ ○ /admin/organisations                     3.3 kB         90.5 kB
+├ ○ /admin/payments                          3.36 kB        99.2 kB
+├ ○ /admin/pricing                           3.87 kB        91.1 kB
+├ ○ /admin/support                           142 B          98.5 kB
+├ ○ /admin/test-reports                      138 B          92.1 kB
+├ ○ /admin/waitlist                          1.65 kB        88.8 kB
+├ ƒ /api/account                             0 B                0 B
+├ ƒ /api/account/activate                    0 B                0 B
+├ ƒ /api/account/activation                  0 B                0 B
+├ ƒ /api/account/desktop-auth                0 B                0 B
+├ ƒ /api/account/organisation                0 B                0 B
+├ ƒ /api/account/profile                     0 B                0 B
+├ ƒ /api/account/support                     0 B                0 B
+├ ƒ /api/account/test-reports                0 B                0 B
+├ ƒ /api/admin/analytics                     0 B                0 B
+├ ƒ /api/admin/licenses                      0 B                0 B
+├ ƒ /api/admin/login                         0 B                0 B
+├ ƒ /api/admin/logout                        0 B                0 B
+├ ƒ /api/admin/messages                      0 B                0 B
+├ ƒ /api/admin/organisations                 0 B                0 B
+├ ƒ /api/admin/payments                      0 B                0 B
+├ ƒ /api/admin/pricing                       0 B                0 B
+├ ƒ /api/admin/support                       0 B                0 B
+├ ƒ /api/admin/test-reports                  0 B                0 B
+├ ƒ /api/admin/waitlist                      0 B                0 B
+├ ƒ /api/auth/forgot-password                0 B                0 B
+├ ƒ /api/auth/login                          0 B                0 B
+├ ƒ /api/auth/logout                         0 B                0 B
+├ ƒ /api/auth/register                       0 B                0 B
+├ ƒ /api/auth/reset-password                 0 B                0 B
+├ ƒ /api/billing/callback                    0 B                0 B
+├ ƒ /api/billing/checkout                    0 B                0 B
+├ ƒ /api/billing/manage                      0 B                0 B
+├ ƒ /api/billing/state                       0 B                0 B
+├ ƒ /api/billing/verify                      0 B                0 B
+├ ƒ /api/billing/webhook                     0 B                0 B
+├ ƒ /api/desktop/account/activation-confirm  0 B                0 B
+├ ƒ /api/desktop/account/activation-key      0 B                0 B
+├ ƒ /api/desktop/account/activation-request  0 B                0 B
+├ ƒ /api/desktop/account/ai-claim            0 B                0 B
+├ ƒ /api/desktop/account/ai-status           0 B                0 B
+├ ƒ /api/desktop/account/login               0 B                0 B
+├ ƒ /api/desktop/account/refresh             0 B                0 B
+├ ƒ /api/desktop/auth/poll                   0 B                0 B
+├ ƒ /api/desktop/auth/start                  0 B                0 B
+├ ƒ /api/desktop/challenge                   0 B                0 B
+├ ƒ /api/desktop/login                       0 B                0 B
+├ ƒ /api/desktop/refresh                     0 B                0 B
+├ ƒ /api/desktop/register                    0 B                0 B
+├ ƒ /api/desktop/test-reports                0 B                0 B
+├ ƒ /api/desktop/test-reports/complete       0 B                0 B
+├ ƒ /api/desktop/test-reports/delete         0 B                0 B
+├ ƒ /api/desktop/usage                       0 B                0 B
+├ ƒ /api/download/mobile                     0 B                0 B
+├ ƒ /api/download/windows                    0 B                0 B
+├ ƒ /api/jobs/daily                          0 B                0 B
+├ ƒ /api/pricing                             0 B                0 B
+├ ƒ /api/updates/desktop                     0 B                0 B
+├ ƒ /api/updates/mobile                      0 B                0 B
+├ ƒ /api/waitlist                            0 B                0 B
+├ ○ /apple-icon.png                          0 B                0 B
+├ ○ /docs                                    188 B          96.1 kB
+├ ● /docs/[slug]                             188 B          96.1 kB
+├   ├ /docs/getting-started
+├   ├ /docs/audio-and-models
+├   ├ /docs/bibles-and-translations
+├   └ [+3 more paths]
+├ ○ /download                                983 B          96.9 kB
+├ ○ /features                                188 B          96.1 kB
+├ ○ /icon.png                                0 B                0 B
+├ ○ /opengraph-image.png                     0 B                0 B
+├ ○ /pricing                                 3.18 kB        99.1 kB
+├ ○ /releases                                188 B          96.1 kB
+├ ○ /robots.txt                              0 B                0 B
+├ ○ /sitemap.xml                             0 B                0 B
+└ ○ /support                                 1.53 kB        97.4 kB
++ First Load JS shared by all                87.2 kB
+  ├ chunks/2117-8fc8d0a101d25493.js          31.6 kB
+  ├ chunks/fd9d1056-4de141c3fd462f6b.js      53.6 kB
+  └ other shared chunks (total)              1.95 kB
+
+
+ƒ Middleware                                 26.9 kB
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses getStaticProps)
+ƒ  (Dynamic)  server-rendered on demand
+

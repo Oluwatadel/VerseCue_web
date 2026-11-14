@@ -1,0 +1,7 @@
+PASS password visibility /account/login
+PASS password visibility /account/register
+PASS password visibility /account/reset-password?token=test
+PASS password visibility /admin/login
+PASS unauthenticated admin reset denied
+PASS admin 1000-account fixture: 25 rows per page, paging, search, 60-second responsiveness
+PASS confirmed admin reset-link flow and dismissal; no browser errors

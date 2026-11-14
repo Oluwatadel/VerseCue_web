@@ -1,4 +1,5 @@
 "use client";
+import PasswordInput from "../../components/PasswordInput";
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -53,7 +54,7 @@ function LoginForm() {
             <label htmlFor="admin-password" className="sr-only">
               Password
             </label>
-            <input
+            <PasswordInput
               id="admin-password"
               type="password"
               className="input"

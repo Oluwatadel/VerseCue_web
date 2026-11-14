@@ -315,13 +315,13 @@ export class LicensingService {
     SELECT $1,a.id,$2,'Your verseVIO AI activation',CASE WHEN $3::boolean AND a.id IS NOT NULL
      THEN $4 ELSE $5 END,$6 FROM (VALUES(1)) seed(v) LEFT JOIN vc_accounts a ON a.email=$2`,
     values:['activation:'+id,email,complimentary,`Complimentary AI access has been granted to your verseVIO account. No code is needed: open verseVIO and choose Activate AI. Manage any existing auto-renewal at ${siteOrigin()}/account/upgrade.`,
-     `Your verseVIO AI activation code is ${code}. It is assigned to ${email}. Create a free account with this email if needed, sign in at ${siteOrigin()}/account, and enter the code under Activate or renew AI. Then open verseVIO to activate on your registered computer. ${expires?'Licence expiry: '+expires.toISOString()+'.':''}`,id]},
+     `Your verseVIO AI activation code is ${code}. It is assigned to ${email}. Create a free account with this email if needed, sign in at ${siteOrigin()}/account, and enter the code under Activate or renew AI, or paste it into Activate AI → Use activation key in the signed-in desktop app. Use the same email assigned to this code. ${expires?'Licence expiry: '+expires.toISOString()+'.':''}`,id]},
   ]);
   const attached=complimentary && !!issued[1][0]?.account_id;
   return {id,code,email,complimentary,attached,emailQueued:true,message:complimentary
    ? attached?"Complimentary AI access granted. This user can sign in directly on their registered computer; no code redemption is needed."
     :"Complimentary AI access granted. Ask the recipient to create a free account, then redeem this code on their account page."
-   :"Activation code issued."};
+   :"Activation code issued. Earlier codes for this email have been revoked. Use this code in the signed-in desktop app or on the account page."};
  }
  async adminList() {
   return {accounts:await accountSummaries(this.db,500),

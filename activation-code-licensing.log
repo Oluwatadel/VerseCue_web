@@ -1,0 +1,79 @@
+
+> versecue-web@1.0.0 test:licensing
+> tsx tools/check-licensing.ts
+
+PASS database configuration failures give actionable errors without exposing credentials
+PASS admin issues activation code
+PASS account registers and activates first computer
+PASS lease is signed by issuer
+PASS lease identifies bound computer
+PASS only bound device can unwrap model key
+PASS password is salted scrypt hash
+PASS activation code is stored only as a hash
+PASS device challenge cannot be replayed
+PASS same account and code rejected on second computer
+PASS bound computer signs in without activation code
+PASS wrong password rejected
+PASS web session cannot obtain desktop model key
+PASS desktop refresh issues signed lease
+PASS copied session cannot refresh on another computer
+PASS unconfigured issuer fails before account changes
+PASS failed issuer creates no account
+PASS blocked account loses sessions
+PASS reset revokes old code
+PASS new code activates replacement computer after admin reset
+PASS old computer cannot sign in after reset
+PASS revocation removes desktop sessions
+PASS invalid account email rejected
+PASS expired grant rejected
+PASS simultaneous activation has exactly one winner
+PASS simultaneous activation creates one account
+PASS website activation grants AI without binding the browser computer
+PASS website activation session cannot retrieve model keys
+PASS signed licence explicitly grants only AI features
+PASS first desktop sign-in binds online activation without re-entering code
+PASS online activation cannot be used on a second computer
+PASS website renewal retains registered computer and refreshes AI access
+PASS cannot redeem another account's code on the website
+PASS website reset activation does not bind browser identity
+PASS replacement computer claims website activation after admin reset
+PASS two computers racing for one website activation have one winner
+PASS new recipient gets complimentary registration code
+PASS complimentary AI grants ongoing entitlement by default
+PASS complimentary access keeps one-computer restriction
+PASS existing account receives complimentary grant without code redemption
+PASS existing desktop can refresh complimentary grant directly
+PASS admin can revoke complimentary AI access
+PASS complimentary grant does not bypass blocked account
+PASS complimentary grants are recorded in admin audit
+PASS complimentary grant rejects past expiry
+PASS free registration requires organisation name
+PASS free registration stores organisation without activation or device binding
+PASS duplicate free registration requires sign-in
+PASS AI signing configuration is still required for AI activation
+PASS downloads require a valid account session
+PASS authenticated download is recorded against email and organisation account
+PASS free desktop login binds one computer without signing keys or model keys
+PASS free account cannot jump to another computer
+PASS desktop account token cannot impersonate website download session
+PASS free desktop session refresh works without AI configuration
+PASS free desktop session cannot obtain an AI model key
+PASS website session cannot impersonate free desktop session
+PASS registered free account can later receive complimentary AI on its bound computer
+PASS revoking AI removes AI sessions
+PASS AI revocation preserves free desktop and website access
+PASS computer reset invalidates old free desktop sessions
+PASS admin reset permits free account on a replacement computer
+PASS blocked accounts lose free desktop access
+PASS two computers racing for free account binding have exactly one winner
+PASS website sessions cannot submit desktop usage
+PASS active usage cannot exceed running time
+PASS future usage is rejected
+PASS usage must come from registered computer
+PASS duplicate and older usage reports do not double-count or decrease minutes
+PASS analytics aggregate downloads separately without multiplying usage
+PASS analytics count distinct recent desktop users and UTC daily totals
+PASS existing account can request a password reset token
+PASS password reset tokens are single-use
+PASS password reset invalidates desktop sessions
+74 licensing checks passed

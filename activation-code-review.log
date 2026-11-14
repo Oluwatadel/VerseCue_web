@@ -1,0 +1,57 @@
+
+> versecue-web@1.0.0 test:activation-delivery
+> tsx tools/check-activation-delivery.ts
+
+PASS unsigned visitor cannot view activation
+PASS desktop token cannot choose website activation
+PASS unpaid account cannot request a key
+PASS unpaid or test-only account cannot request desktop activation
+PASS website lists only the account registered computer
+PASS cannot target an unregistered computer
+PASS repeated connect reuses the pending request
+PASS website waits for actual desktop confirmation
+PASS one desktop response supplies entitlement and activation request
+PASS desktop polling loads its account only once
+PASS another account cannot inspect connection progress
+PASS desktop connection does not send unsolicited activation keys
+PASS desktop still receives a signed device-bound lease
+PASS popup reports success only after desktop acknowledgment
+PASS confirmed request stops desktop polling work
+PASS offline computer request expires without a false success
+PASS invalid device proof cannot confirm an activation
+PASS email provider failure truthfully reports queued delivery
+PASS activation key is never returned to the browser
+PASS email contains key, account and expiry instructions
+PASS key stored as hash outside durable email outbox
+PASS invalid proof is rejected before key validation
+PASS emailed key can activate registered desktop
+PASS same-computer retry after interrupted activation is safe
+PASS key redemption always requires a real signed device proof
+PASS used key cannot jump to another approved computer
+PASS request for a second computer is not delivered to the first
+PASS another registered computer cannot acknowledge the selected device
+PASS approved organisation computer can confirm its own activation
+PASS queued key email retries and clears plaintext after delivery
+PASS email option reports sent only after provider acceptance
+PASS expired queued activation keys are cancelled before delivery
+PASS expired key is rejected even on the same computer
+PASS online desktop learns revocation without losing its free account session
+PASS revoked access cannot obtain new keys
+PASS revocation cannot be bypassed with an old key
+PASS both activation methods preserve subscription expiry
+PASS malformed code reports format error rather than expired access
+PASS standard admin grant starts unredeemed without AI access
+PASS admin code requires signed computer proof
+PASS website session cannot redeem a desktop admin code
+PASS another account admin code cannot be redeemed
+PASS admin VC code establishes AI access without a prior subscription
+PASS admin code same-computer retry is idempotent
+PASS redeemed admin code produces a signed computer-bound AI and mobile lease
+PASS admin redemption binds the correct account and computer and preserves expiry
+PASS revoked admin code cannot reactivate access
+PASS expired admin code cannot reactivate access
+PASS attached unlimited complimentary admin code activates without payment
+PASS unlimited complimentary grant stays without a subscription expiry
+PASS personal admin code cannot move from primary to an approved secondary computer
+PASS complimentary code issued before registration activates directly in desktop
+52 activation delivery checks passed. No real emails or payments were sent.

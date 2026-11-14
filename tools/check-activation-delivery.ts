@@ -13,7 +13,7 @@ async function main(){let checks=0;const check=(value:unknown,name:string)=>{ass
  const keys=generateKeyPairSync('rsa',{modulusLength:2048}),licensing=new LicensingService(db,{signingKey:keys.privateKey.export({type:'pkcs8',format:'pem'}).toString(),modelKey:randomBytes(32).toString('base64'),modelKeyId:'activation-delivery-test'}),email='operator@example.invalid',password='activation-test-password';
  const user=await licensing.webRegister({email,password,organisationName:'Activation Church'}),other=await licensing.webRegister({email:'other@example.invalid',password,organisationName:'Other Church'});
  let mailFails=true,delivered='';const mail=new EmailService(db,'re_fixture','VerseCue <test@example.invalid>',async(_url,options)=>{delivered=JSON.parse(String(options?.body)).text;return Response.json({}, {status:mailFails?429:200});});const delivery=new ActivationDelivery(db,licensing,mail);
- function machine(label:string){const key=generateKeyPairSync('rsa',{modulusLength:2048}),machineHash=hash(label),publicKey=key.publicKey.export({type:'spki',format:'der'}).toString('base64'),id=hash(`versecue-device-v1\n${machineHash}\n${publicKey}`);return {id,async proof(){const {nonce}=await licensing.challenge();return {id,machineHash,publicKey,name:label,nonce,proof:sign('sha256',Buffer.from(`VerseCue-device-v1\n${nonce}\n${email}\n${id}`),{key:key.privateKey,padding:6,saltLength:32}).toString('base64')};}};}
+ function machine(label:string,ownerEmail=email){const key=generateKeyPairSync('rsa',{modulusLength:2048}),machineHash=hash(label),publicKey=key.publicKey.export({type:'spki',format:'der'}).toString('base64'),id=hash(`versecue-device-v1\n${machineHash}\n${publicKey}`);return {id,async proof(){const {nonce}=await licensing.challenge();return {id,machineHash,publicKey,name:label,nonce,proof:sign('sha256',Buffer.from(`VerseCue-device-v1\n${nonce}\n${ownerEmail}\n${id}`),{key:key.privateKey,padding:6,saltLength:32}).toString('base64')};}};}
  const first=machine('Media PC'),second=machine('Second PC'),desktop=await licensing.freeDesktopLogin({email,password,device:await first.proof()});
  await reject(()=>delivery.state('invalid'),401,'unsigned visitor cannot view activation');await reject(()=>delivery.state(desktop.session),401,'desktop token cannot choose website activation');
  await reject(()=>delivery.emailKey(user.session),403,'unpaid account cannot request a key');await reject(()=>delivery.connect(user.session,first.id),403,'unpaid or test-only account cannot request desktop activation');
@@ -25,14 +25,14 @@ async function main(){let checks=0;const check=(value:unknown,name:string)=>{ass
  check((await delivery.state(user.session,request.id)).request?.status==='pending','website waits for actual desktop confirmation');
  const readsBefore=accountReads;const desktopState=await delivery.pending(desktop.session);check(desktopState.active&&desktopState.requestId===request.id,'one desktop response supplies entitlement and activation request');check(accountReads===readsBefore+1,'desktop polling loads its account only once');
  await reject(()=>delivery.state(other.session,request.id),404,'another account cannot inspect connection progress');
- check(!(await db.query("SELECT id FROM vc_email_outbox WHERE subject='Your VerseCue activation key'")).length,'desktop connection does not send unsolicited activation keys');
+ check(!(await db.query("SELECT id FROM vc_email_outbox WHERE subject='Your verseVIO activation key'")).length,'desktop connection does not send unsolicited activation keys');
  const lease=await licensing.claimAi(desktop.session,await first.proof());check(typeof lease.lease==='string','desktop still receives a signed device-bound lease');
  await delivery.confirm(desktop.session,request.id,await first.proof());check((await delivery.state(user.session,request.id)).request?.status==='activated','popup reports success only after desktop acknowledgment');
  check((await delivery.pending(desktop.session)).requestId===null,'confirmed request stops desktop polling work');
  const timed=await delivery.connect(user.session,first.id);await db.query("UPDATE vc_activation_requests SET expires_at=now()-interval '1 second' WHERE id=$1",[timed.id]);check((await delivery.state(user.session,timed.id)).request?.status==='expired','offline computer request expires without a false success');
  await reject(()=>delivery.confirm(desktop.session,timed.id,{}),400,'invalid device proof cannot confirm an activation');
  const mailResult=await delivery.emailKey(user.session);check(mailResult.delivery==='queued','email provider failure truthfully reports queued delivery');check(!JSON.stringify(mailResult).includes('VCK-'),'activation key is never returned to the browser');
- const [queued]=await db.query("SELECT id,text_body FROM vc_email_outbox WHERE subject='Your VerseCue activation key'");const code=queued.text_body.match(/VCK-(?:[A-F0-9]{4}-){7}[A-F0-9]{4}/)[0];
+ const [queued]=await db.query("SELECT id,text_body FROM vc_email_outbox WHERE subject='Your verseVIO activation key'");const code=queued.text_body.match(/VCK-(?:[A-F0-9]{4}-){7}[A-F0-9]{4}/)[0];
  check(queued.text_body.includes(email)&&queued.text_body.includes('24 hours'),'email contains key, account and expiry instructions');
  const [stored]=await db.query('SELECT code_hash FROM vc_activation_keys');check(stored.code_hash!==code&&!stored.code_hash.includes('VCK'),'key stored as hash outside durable email outbox');
  await reject(()=>delivery.redeem(desktop.session,'invalid',{}),400,'invalid proof is rejected before key validation');
@@ -46,9 +46,36 @@ async function main(){let checks=0;const check=(value:unknown,name:string)=>{ass
  mailFails=false;await mail.dispatch(1,queued.id);check(delivered.includes(code)&&(await db.query('SELECT state,text_body FROM vc_email_outbox WHERE id=$1',[queued.id]))[0].text_body==='','queued key email retries and clears plaintext after delivery');
  check((await delivery.emailKey(user.session)).delivery==='sent','email option reports sent only after provider acceptance');
  mailFails=true;await delivery.emailKey(user.session);
- await db.query("UPDATE vc_activation_keys SET expires_at=now()-interval '1 second'");mailFails=false;await mail.dispatch(10);check(!(await db.query("SELECT id FROM vc_email_outbox WHERE subject='Your VerseCue activation key' AND state='queued'")).length,'expired queued activation keys are cancelled before delivery');await reject(async()=>delivery.redeem(desktop.session,code,await first.proof()),403,'expired key is rejected even on the same computer');
+ await db.query("UPDATE vc_activation_keys SET expires_at=now()-interval '1 second'");mailFails=false;await mail.dispatch(10);check(!(await db.query("SELECT id FROM vc_email_outbox WHERE subject='Your verseVIO activation key' AND state='queued'")).length,'expired queued activation keys are cancelled before delivery');await reject(async()=>delivery.redeem(desktop.session,code,await first.proof()),403,'expired key is rejected even on the same computer');
  await db.query("UPDATE vc_organisation_members SET status='removed' WHERE organisation_id=$1",[orgId]);await db.query("UPDATE vc_licenses SET status='revoked' WHERE id=$1",[licenceId]);check(!(await delivery.pending(desktop.session)).active,'online desktop learns revocation without losing its free account session');await reject(()=>delivery.emailKey(user.session),403,'revoked access cannot obtain new keys');await reject(async()=>delivery.redeem(desktop.session,code,await first.proof()),403,'revocation cannot be bypassed with an old key');
  check(new Date((await db.query('SELECT expires_at FROM vc_licenses WHERE id=$1',[licenceId]))[0].expires_at).getTime()===new Date(expiry).getTime(),'both activation methods preserve subscription expiry');
+
+ const adminEmail='admin-grant@example.invalid',adminUser=await licensing.webRegister({email:adminEmail,password,organisationName:'Admin grant test'}),adminPc=machine('Admin grant PC',adminEmail),adminDesktop=await licensing.freeDesktopLogin({email:adminEmail,password,device:await adminPc.proof()});
+ await reject(async()=>delivery.redeem(adminDesktop.session,'bad-code',await adminPc.proof()),400,'malformed code reports format error rather than expired access');
+ const adminGrant=await licensing.issue(adminEmail,new Date(Date.now()+86400000).toISOString());
+ check(!(await licensing.aiStatus(adminDesktop.session)).active,'standard admin grant starts unredeemed without AI access');
+ await reject(async()=>delivery.redeem(adminDesktop.session,adminGrant.code,{}),400,'admin code requires signed computer proof');
+ await reject(async()=>delivery.redeem(adminUser.session,adminGrant.code,await adminPc.proof()),409,'website session cannot redeem a desktop admin code');
+ await reject(async()=>delivery.redeem(adminDesktop.session,await licensing.issue(email).then(g=>g.code),await adminPc.proof()),403,'another account admin code cannot be redeemed');
+ await delivery.redeem(adminDesktop.session,adminGrant.code.toLowerCase(),await adminPc.proof());
+ check((await licensing.aiStatus(adminDesktop.session)).active,'admin VC code establishes AI access without a prior subscription');
+ await delivery.redeem(adminDesktop.session,adminGrant.code,await adminPc.proof());check(true,'admin code same-computer retry is idempotent');
+ const adminLease=await licensing.claimAi(adminDesktop.session,await adminPc.proof()),claims=JSON.parse(Buffer.from(adminLease.lease.split('.')[0],'base64url').toString());
+ check(claims.deviceId===adminPc.id&&claims.features.includes('mobile-remote'),'redeemed admin code produces a signed computer-bound AI and mobile lease');
+ const [bound]=await db.query('SELECT * FROM vc_licenses WHERE id=$1',[adminGrant.id]);
+ check(bound.account_id===adminUser.account.id&&bound.device_id===adminPc.id&&new Date(bound.expires_at).getTime()>Date.now(),'admin redemption binds the correct account and computer and preserves expiry');
+ await db.query("UPDATE vc_licenses SET status='revoked' WHERE id=$1",[adminGrant.id]);
+ await reject(async()=>delivery.redeem(adminDesktop.session,adminGrant.code,await adminPc.proof()),403,'revoked admin code cannot reactivate access');
+ await db.query("UPDATE vc_licenses SET status='active',expires_at=now()-interval '1 second' WHERE id=$1",[adminGrant.id]);
+ await reject(async()=>delivery.redeem(adminDesktop.session,adminGrant.code,await adminPc.proof()),403,'expired admin code cannot reactivate access');
+ const complimentary=await licensing.grantFree(adminEmail);await delivery.redeem(adminDesktop.session,complimentary.code,await adminPc.proof());
+ check((await licensing.aiStatus(adminDesktop.session)).active,'attached unlimited complimentary admin code activates without payment');
+ check((await db.query('SELECT expires_at FROM vc_licenses WHERE id=$1',[complimentary.id]))[0].expires_at===null,'unlimited complimentary grant stays without a subscription expiry');
+ const adminOrg=randomUUID();await db.query("INSERT INTO vc_organisations(id,name,unlimited_ai,multi_device,device_limit) VALUES($1,'Admin two-PC test',true,true,2)",[adminOrg]);await db.query('INSERT INTO vc_organisation_members(organisation_id,account_id) VALUES($1,$2)',[adminOrg,adminUser.account.id]);
+ const adminSecond=machine('Admin secondary PC',adminEmail),adminSecondSession=await licensing.freeDesktopLogin({email:adminEmail,password,device:await adminSecond.proof()});
+ await reject(async()=>delivery.redeem(adminSecondSession.session,complimentary.code,await adminSecond.proof()),403,'personal admin code cannot move from primary to an approved secondary computer');
+ const laterEmail='pre-account-grant@example.invalid',preGrant=await licensing.grantFree(laterEmail),laterUser=await licensing.webRegister({email:laterEmail,password,organisationName:'Later registration'}),laterPc=machine('Later PC',laterEmail),laterDesktop=await licensing.freeDesktopLogin({email:laterEmail,password,device:await laterPc.proof()});
+ await delivery.redeem(laterDesktop.session,preGrant.code,await laterPc.proof());check((await licensing.claimAi(laterDesktop.session,await laterPc.proof())).email===laterEmail,'complimentary code issued before registration activates directly in desktop');
  console.log(checks+' activation delivery checks passed. No real emails or payments were sent.');
  }finally{await pg.close();}}
 main().catch(e=>{console.error(e);process.exitCode=1;});
