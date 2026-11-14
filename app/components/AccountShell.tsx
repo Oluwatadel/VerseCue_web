@@ -4,7 +4,7 @@ import {useEffect,useState} from 'react';
 import {usePathname,useRouter} from 'next/navigation';
 import {Logo} from './Logo';
 import {isAccountWorkspace} from '../../lib/account-routes';
-const links=[['/account','Overview','Your workspace status'],['/account/upgrade','Plans & billing','Subscriptions and payments'],['/account/organisation','Organisation','Shared access and invitations'],['/account/profile','Profile & activation','Your details and activation codes'],['/account/support','Support','Requests and conversations'],['/account/test-reports','Test reports','Review or delete shared diagnostics']];
+const links=[['/account','Overview','Your workspace status'],['/account/upgrade','Plans & billing','Subscriptions and payments'],['/account/organisation','Organisation','Shared access and invitations'],['/account/profile','Profile & activation','Your details and account access'],['/account/support','Support','Requests and conversations'],['/account/test-reports','Test reports','Review or delete shared diagnostics']];
 export default function AccountShell({children}:{children:React.ReactNode}){
  const path=usePathname(),router=useRouter();const[open,setOpen]=useState(false),[signingOut,setSigningOut]=useState(false),[error,setError]=useState('');
  useEffect(()=>setOpen(false),[path]);

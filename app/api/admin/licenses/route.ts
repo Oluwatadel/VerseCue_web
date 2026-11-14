@@ -6,7 +6,7 @@ export const runtime="nodejs";
 export async function GET(request:Request){return api(async()=>{await admin(request);return service().adminList();});}
 export async function POST(request:Request){return api(async()=>{await admin(request);const body=await readJson(request);
  if(body.action==='grant-free'||body.action==='issue'){
-  const result=body.action==='grant-free'?await service().grantFree(body.email,body.expiresAt):await service().issue(body.email,body.expiresAt);
+  const result=await service().grantAccountAccess(body.email,body.expiresAt,body.action==='grant-free');
   const db=licensingDb();try{await new EmailService(db).dispatch(1,'activation:'+result.id);}catch{}
   const [mail]=await db.query('SELECT state FROM vc_email_outbox WHERE id=$1',['activation:'+result.id]);
   return {...result,emailState:mail?.state||'queued',message:result.message+(mail?.state==='sent'?' Activation email sent.':' Activation email queued; see Email delivery.')};

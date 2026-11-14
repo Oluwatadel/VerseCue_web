@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {DownloadAccess} from "../../components/DownloadAccess";
 import { getWindowsInstallerUrl } from "../../../lib/site-config";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const metadata: Metadata = { title: "Download verseVIO | Windows", description: "Get the verseVIO Windows installer when published. macOS and Linux versions are coming soon." };
 export default function DownloadPage() {
   const windowsUrl = getWindowsInstallerUrl();
-  return <div className="container-x py-14 sm:py-20"><p className="eyebrow">verseVIO downloads</p><h1 className="page-title">Bring verseVIO to your service computer.</h1><p className="page-intro">Create a free account with your email and organisation name, then download and install verseVIO. Bible lookup, projection, songs, slides and video work without activation. AI transcription and automatic verse detection are optional activated features. The Windows installer link will appear when published.</p>
+  return <div className="container-x py-14 sm:py-20"><p className="eyebrow">verseVIO downloads</p><h1 className="page-title">Bring verseVIO to your service computer.</h1><p className="page-intro">Create a free account with your email and organisation name, then download and install verseVIO. Bible lookup, projection, songs, slides and video work without activation. AI transcription and automatic verse detection are optional activated features. Sign in to download the available Windows installer.</p>
     <div className="mt-9 grid gap-5 lg:grid-cols-[1.4fr_1fr_1fr]">
       <section className="rounded-xl border border-blue-300/30 bg-blue-400/10 p-7"><span className="badge">Windows desktop</span><h2 className="mt-5 text-2xl font-bold">verseVIO for Windows</h2><p className="mt-4 leading-7 text-slate-600">The desktop app includes verseVIO Clarity as its default speech model, with operator previews, Scripture queues and church media tools.</p>
         <DownloadAccess available={!!windowsUrl}/>

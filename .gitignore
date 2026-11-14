@@ -51,3 +51,6 @@ artifacts/
 /.next-account-review/
 
 /.next-navigation-review/
+
+# Local build and test output (never production audit storage)
+*.log

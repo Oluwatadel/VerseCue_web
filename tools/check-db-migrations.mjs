@@ -17,7 +17,8 @@ console.log("PASS: Invalid connection strings fail before connecting; database f
 const db = new PGlite();
 try {
   const migrations = loadMigrations();
-  assert.deepEqual(migrations.map(m => m.statements.length), [7, 1, 4, 2, 6, 8, 9, 5, 2, 1, 3, 2, 1, 2, 2]);
+  assert.equal(migrations.length,16);
+  assert.deepEqual(migrations.slice(0,15).map(m => m.statements.length), [7, 1, 4, 2, 6, 8, 9, 5, 2, 1, 3, 2, 1, 2, 2]);
   const apply = async () => {
     await db.exec("BEGIN");
     try {

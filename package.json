@@ -21,7 +21,8 @@
     "test:subscriptions": "tsx tools/check-subscriptions.ts",
     "test:email-delivery": "tsx tools/check-email-delivery.ts",
     "test:reporting": "tsx tools/check-account-reporting.ts",
-    "test:test-reports": "tsx tools/check-test-reports.ts"
+    "test:test-reports": "tsx tools/check-test-reports.ts",
+    "test:audit": "tsx tools/check-audit.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1166.0",

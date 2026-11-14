@@ -1,4 +1,3 @@
-import {api,service,bearer} from "../../../../lib/licensing-api";
-import {readJson,sameOrigin} from "../../../../lib/licensing-security";
-export const runtime="nodejs";
-export async function POST(request:Request){return api(async()=>{sameOrigin(request);const body=await readJson(request);return service().webActivate(bearer(request),body.activationCode);});}
+import {api} from '../../../../lib/licensing-api';
+import {LicenseError} from '../../../../lib/licensing-security';
+export async function POST(){return api(async()=>{throw new LicenseError(410,'Activation codes are no longer used. Open the signed-in desktop app and choose Check activation now.');});}

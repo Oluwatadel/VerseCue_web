@@ -1,3 +1,4 @@
+import {churchLocation} from './church-location';
 import {accountSummaries,subscriptionTotals} from './account-reporting';
 import { randomBytes, randomUUID, createPrivateKey, createPublicKey, publicEncrypt, sign, constants } from "node:crypto";
 import {siteOrigin} from "./billing-plans";
@@ -97,17 +98,17 @@ export class LicensingService {
  }
  async webRegister(input: Record<string,any>) {
   const email=normalizeEmail(input.email);checkEmail(email);
-  const organisation=this.organisation(input.organisationName);
+  const organisation=this.organisation(input.organisationName),location=churchLocation(input.churchLocation);
   await this.rate("register-global",50);await this.rate("web-register:"+email,5);
   const passwordHash=await hashPassword(String(input.password||""));
-  const rows=await this.db.query(`INSERT INTO vc_accounts(id,email,password_hash,organisation_name)
-   VALUES($1,$2,$3,$4) ON CONFLICT(email) DO NOTHING RETURNING id,email,organisation_name`,[randomUUID(),email,passwordHash,organisation]);
+  const rows=await this.db.query(`INSERT INTO vc_accounts(id,email,password_hash,organisation_name,church_location)
+   VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT(email) DO NOTHING RETURNING id,email,organisation_name`,[randomUUID(),email,passwordHash,organisation,JSON.stringify(location)]);
   if(!rows.length)throw new LicenseError(409,"This email already has an account. Sign in to continue.");
   return {session:await this.newSession(rows[0].id,null),account:rows[0]};
  }
- async updateProfile(token: string, organisationName: unknown) {
+ async updateProfile(token: string, organisationName: unknown, location?:unknown) {
   const account=await this.account(token);const organisation=this.organisation(organisationName);
-  await this.db.query("UPDATE vc_accounts SET organisation_name=$2 WHERE id=$1",[account.id,organisation]);
+  await this.db.query("UPDATE vc_accounts SET organisation_name=$2,church_location=CASE WHEN $3::boolean THEN $4::jsonb ELSE church_location END WHERE id=$1",[account.id,organisation,location!==undefined,JSON.stringify(churchLocation(location))]);
   return {message:"Organisation saved."};
  }
  async recordDownload(token: string) {
@@ -257,10 +258,19 @@ export class LicensingService {
   return rows.some(row=>!d||row.public_key===d.publicKey);
  }
  async account(token: string): Promise<Row & {licenses: Row[]}> {
-  const rows=await this.db.query(`SELECT a.id,a.email,a.organisation_name,a.status,a.created_at,a.device_id,a.device_public_key,a.device_name,a.revision,s.device_id AS session_device,s.kind AS session_kind,s.expires_at AS session_expires_at
+  const rows=await this.db.query(`SELECT a.id,a.email,a.organisation_name,a.church_location,a.status,a.created_at,a.device_id,a.device_public_key,a.device_name,a.revision,s.device_id AS session_device,s.kind AS session_kind,s.expires_at AS session_expires_at
    FROM vc_sessions s JOIN vc_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.expires_at>now() AND a.status='active'`,[hash(token)]);
   if(!rows.length) throw new LicenseError(401,"Please sign in again.");
-  const a=rows[0]; const licenses=await this.db.query("SELECT id,status,access_kind,expires_at,activated_at,device_id FROM vc_licenses WHERE account_id=$1 ORDER BY created_at DESC",[a.id]);
+  const a=rows[0];
+  const licenses=await this.db.query(`WITH attached AS (
+   UPDATE vc_licenses SET account_id=$1,activated_at=COALESCE(activated_at,now())
+   WHERE owner_email=$2 AND account_id IS NULL AND status='active' AND (expires_at IS NULL OR expires_at>now())
+   AND (device_id IS NULL OR device_id=$3)
+   RETURNING id,status,access_kind,expires_at,activated_at,device_id,created_at
+  ) SELECT id,status,access_kind,expires_at,activated_at,device_id FROM (
+   SELECT id,status,access_kind,expires_at,activated_at,device_id,created_at FROM vc_licenses WHERE account_id=$1
+   UNION ALL SELECT * FROM attached
+  ) grants ORDER BY created_at DESC`,[a.id,a.email,a.device_id]);
   const organisation=await this.organisationAccess(a.id);
   if(organisation)licenses.push({id:organisation.id,status:'active',access_kind:'organisation',expires_at:organisation.unlimited_ai?null:organisation.paid_expires_at,organisation_name:organisation.name,activated_at:null});
   return {...a,licenses};
@@ -290,38 +300,38 @@ export class LicensingService {
   const signature=sign("sha256",Buffer.from(payload),{key:createPrivateKey(this.config.signingKey.replace(/\\n/g,"\n")),padding:constants.RSA_PKCS1_PSS_PADDING,saltLength:32}).toString("base64url");
   return `${payload}.${signature}`;
  }
+ async grantAccountAccess(email:unknown,expires?:unknown,complimentary=false){const {code:_unused,...grant}=await this.issue(email,expires,complimentary,true);return grant;}
  async grantFree(email: unknown,expires?: unknown) { return this.issue(email,expires,true); }
- async issue(emailValue: unknown,expiresValue?: unknown,complimentary=false) {
+ async issue(emailValue: unknown,expiresValue?: unknown,complimentary=false,accountOnly=false) {
   const email=normalizeEmail(emailValue); checkEmail(email);
-  if(complimentary) {
+  {
    const existing=(await this.db.query("SELECT status FROM vc_accounts WHERE email=$1",[email]))[0];
-   if(existing?.status==="blocked")throw new LicenseError(409,"Unblock this account before granting complimentary AI access.");
+   if(existing?.status==="blocked")throw new LicenseError(409,"Unblock this account before granting AI access.");
   }
   const expires=expiresValue ? new Date(String(expiresValue)) : null;
   if(expires && (!Number.isFinite(expires.getTime()) || expires.getTime()<=Date.now())) throw new LicenseError(400,"Choose a future expiry date.");
-  const code="VC-"+randomBytes(18).toString("hex").toUpperCase().match(/.{1,6}/g)!.join("-");
+  const code=accountOnly?"":"VC-"+randomBytes(18).toString("hex").toUpperCase().match(/.{1,6}/g)!.join("-");
   const id=randomUUID();
   const issued=await this.db.transaction([
    {text:"UPDATE vc_licenses SET status='revoked' WHERE owner_email=$1 AND status='active'",values:[email]},
    {text:`INSERT INTO vc_licenses(id,owner_email,code_hash,expires_at,access_kind,account_id,device_id,activated_at)
-    SELECT $1,$2,$3,$4,$5,CASE WHEN $5='complimentary' THEN a.id ELSE NULL END,
-     CASE WHEN $5='complimentary' THEN a.device_id ELSE NULL END,
-     CASE WHEN $5='complimentary' AND a.id IS NOT NULL THEN now() ELSE NULL END
+    SELECT $1,$2,$3,$4,$5,a.id,
+     a.device_id,
+     CASE WHEN a.id IS NOT NULL THEN now() ELSE NULL END
     FROM (VALUES(1)) seed(v) LEFT JOIN vc_accounts a ON a.email=$2 AND a.status='active'
-    RETURNING account_id`,values:[id,email,hash(code.replace(/-/g,"")),expires?.toISOString() || null,complimentary?"complimentary":"standard"]},
+    RETURNING account_id`,values:[id,email,accountOnly?hash(randomBytes(32).toString("hex")):hash(code.replace(/-/g,"")),expires?.toISOString() || null,complimentary?"complimentary":"standard"]},
    {text:"INSERT INTO vc_license_audit(id,action,subject) VALUES($1,$2,$3)",values:[randomUUID(),complimentary?"grant-complimentary":"issue",email]},
    {text:"UPDATE vc_email_outbox SET state='cancelled',text_body='' WHERE activation_license_id IN (SELECT id FROM vc_licenses WHERE owner_email=$1 AND status='revoked') AND state='queued'",values:[email]},
    {text:`INSERT INTO vc_email_outbox(id,account_id,recipient,subject,text_body,activation_license_id)
     SELECT $1,a.id,$2,'Your verseVIO AI activation',CASE WHEN $3::boolean AND a.id IS NOT NULL
      THEN $4 ELSE $5 END,$6 FROM (VALUES(1)) seed(v) LEFT JOIN vc_accounts a ON a.email=$2`,
-    values:['activation:'+id,email,complimentary,`Complimentary AI access has been granted to your verseVIO account. No code is needed: open verseVIO and choose Activate AI. Manage any existing auto-renewal at ${siteOrigin()}/account/upgrade.`,
-     `Your verseVIO AI activation code is ${code}. It is assigned to ${email}. Create a free account with this email if needed, sign in at ${siteOrigin()}/account, and enter the code under Activate or renew AI, or paste it into Activate AI → Use activation key in the signed-in desktop app. Use the same email assigned to this code. ${expires?'Licence expiry: '+expires.toISOString()+'.':''}`,id]},
+    values:['activation:'+id,email,complimentary,`Complimentary AI access has been granted to your verseVIO account. Sign in to the desktop app with ${email} and choose Check activation now. No activation key is needed. Manage your account at ${siteOrigin()}/account.`,
+     `AI access has been granted to ${email}. Create an account with this email if needed, sign in to the desktop app, and choose Check activation now. No activation key is needed. ${expires?'Access expires: '+expires.toISOString()+'.':''}`,id]},
   ]);
-  const attached=complimentary && !!issued[1][0]?.account_id;
-  return {id,code,email,complimentary,attached,emailQueued:true,message:complimentary
-   ? attached?"Complimentary AI access granted. This user can sign in directly on their registered computer; no code redemption is needed."
-    :"Complimentary AI access granted. Ask the recipient to create a free account, then redeem this code on their account page."
-   :"Activation code issued. Earlier codes for this email have been revoked. Use this code in the signed-in desktop app or on the account page."};
+  const attached=!!issued[1][0]?.account_id;
+  return {id,code,email,complimentary,attached,emailQueued:true,message:attached
+   ?"AI access granted to this account. Open the signed-in desktop app and choose Check activation now. No activation key is needed."
+   :"AI access reserved for this email. Ask the recipient to create an account and sign in to the desktop app. No activation key is needed."};
  }
  async adminList() {
   return {accounts:await accountSummaries(this.db,500),

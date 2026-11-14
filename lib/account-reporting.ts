@@ -1,5 +1,5 @@
 import type {LicensingDb} from './licensing-db';
-const REPORT=`SELECT a.id,a.email,a.organisation_name,a.status,a.device_name,a.device_id,a.created_at AS registered_at,a.created_at,
+const REPORT=`SELECT a.id,a.email,a.organisation_name,a.church_location,a.status,a.device_name,a.device_id,a.created_at AS registered_at,a.created_at,
  COALESCE(d.downloads,0) AS downloads,d.first_download_at,d.last_download_at,
  COALESCE(u.running_seconds,0)::float8 AS running_seconds,COALESCE(u.active_seconds,0)::float8 AS active_seconds,u.last_seen,
  access.id AS subscription_id,access.expires_at AS subscription_expires_at,access.access_kind,access.source AS subscription_source,
