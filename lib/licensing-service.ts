@@ -1,3 +1,4 @@
+import {installedModelIdentity,modelCompatibility,type ModelIdentity} from './model-identity';
 import {churchLocation} from './church-location';
 import {accountSummaries,subscriptionTotals} from './account-reporting';
 import { randomBytes, randomUUID, createPrivateKey, createPublicKey, publicEncrypt, sign, constants } from "node:crypto";
@@ -5,7 +6,7 @@ import {siteOrigin} from "./billing-plans";
 import {organisationAccess,reserveComputer} from "./organisation-devices";
 import type { LicensingDb, Row } from "./licensing-db";
 import { hash, hashPassword, verifyPassword, normalizeEmail, checkEmail, validateDevice, LicenseError, type Device } from "./licensing-security";
-export type IssuerConfig = { signingKey: string; modelKey: string; modelKeyId: string; offlineHours?: number };
+export type IssuerConfig = { signingKey: string; modelKey: string; modelKeyId: string; offlineHours?: number; modelIdentity?: ModelIdentity };
 export class LicensingService {
  constructor(private db: LicensingDb, private config: IssuerConfig) {}
  async rate(key: string, limit = 10) {
@@ -28,6 +29,10 @@ export class LicensingService {
   return d;
  }
  private configured() {
+  if(this.config.modelIdentity){const checks=modelCompatibility(this.config.modelKey,this.config.modelKeyId,this.config.modelIdentity);
+   if(!checks.MODEL_KEY_ID)throw new LicenseError(503,'The website model version does not match the installed app. Ask your administrator to set MODEL_KEY_ID to '+this.config.modelIdentity.keyId+' and redeploy, then check activation again. No additional payment or activation code is needed.');
+   if(!checks.MODEL_CONTENT_KEY_BASE64)throw new LicenseError(503,'The website model encryption key does not match the installer. Ask your administrator to correct MODEL_CONTENT_KEY_BASE64 using the existing production model key and redeploy.');
+  }
   const hours=this.config.offlineHours ?? 72;
   try {
    if(Buffer.from(this.config.modelKey,"base64").length!==32 || !/^[a-zA-Z0-9._-]{1,100}$/.test(this.config.modelKeyId) || !Number.isFinite(hours) || hours<1 || hours>168) throw new Error();
@@ -358,5 +363,5 @@ export class LicensingService {
  }
 }
 export function issuerConfig(): IssuerConfig {
- return {signingKey:process.env.ACTIVATION_PRIVATE_KEY_PEM || "",modelKey:process.env.MODEL_CONTENT_KEY_BASE64 || "",modelKeyId:process.env.MODEL_KEY_ID || "",offlineHours:Number(process.env.ACTIVATION_OFFLINE_HOURS || 72)};
+ return {modelIdentity:installedModelIdentity,signingKey:process.env.ACTIVATION_PRIVATE_KEY_PEM || "",modelKey:process.env.MODEL_CONTENT_KEY_BASE64 || "",modelKeyId:process.env.MODEL_KEY_ID || "",offlineHours:Number(process.env.ACTIVATION_OFFLINE_HOURS || 72)};
 }

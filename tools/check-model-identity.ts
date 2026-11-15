@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {createHash,randomBytes} from 'node:crypto';
+import {modelCompatibility,installedModelIdentity} from '../lib/model-identity';
+const key=randomBytes(32), encoded=key.toString('base64');
+const identity={keyId:'compatibility-fixture',keySha256:createHash('sha256').update(key).digest('hex')};
+assert.deepEqual(modelCompatibility(encoded,identity.keyId,identity),{MODEL_KEY_ID:true,MODEL_CONTENT_KEY_BASE64:true});
+assert.equal(modelCompatibility(encoded,'new-release-id',identity).MODEL_KEY_ID,false);
+assert.equal(modelCompatibility(randomBytes(32).toString('base64'),identity.keyId,identity).MODEL_CONTENT_KEY_BASE64,false);
+assert.equal(modelCompatibility('invalid',identity.keyId,identity).MODEL_CONTENT_KEY_BASE64,false);
+assert.equal(installedModelIdentity.keyId,'versecue-20261103-5d5b17cc');
+console.log('5 model compatibility checks passed.');
