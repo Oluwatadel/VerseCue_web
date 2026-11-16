@@ -46,7 +46,7 @@ export default function Navbar() {
     : {href: "/account/login", label: "Login"}];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
+    <header className="site-header sticky top-0 z-50 border-b border-slate-200 bg-white">
       <nav className="container-x flex items-center justify-between py-4">
         <a
           href="/"

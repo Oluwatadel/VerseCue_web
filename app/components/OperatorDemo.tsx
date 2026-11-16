@@ -18,7 +18,7 @@ export default function OperatorDemo() {
     setDetections((items) => items.filter((item) => item !== index));
   }
   return (
-    <div className="glass rounded-xl p-4 sm:p-5">
+    <div className="hero-panel glass rounded-xl p-4 sm:p-5">
       <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-blue-700">Interactive walkthrough · sample content</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">

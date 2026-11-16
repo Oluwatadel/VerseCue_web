@@ -2,7 +2,7 @@ import Image from "next/image";
 
 /** Use the supplied complete logo consistently across public and admin pages. */
 export function Logo({ className = "", iconSize = 36, wordmark = true }: { className?: string; iconSize?: number; wordmark?: boolean }) {
-  return <span className={`inline-flex shrink-0 items-center gap-2 ${className}`}><Image src="/versevio-icon.png" alt="" width={iconSize} height={iconSize} priority className="shrink-0 object-contain"/>{wordmark&&<span className="text-xl font-bold tracking-tight text-verse-ink">verse<span className="text-[#765314]">VIO</span></span>}</span>;
+  return <span className={`inline-flex shrink-0 items-center gap-2 ${className}`}><Image src="/versevio-icon.png" alt="" width={iconSize} height={iconSize} priority className="shrink-0 object-contain"/>{wordmark&&<span className="brand-wordmark text-xl font-bold tracking-tight">verse<span className="brand-accent">VIO</span></span>}</span>;
 }
 
 /**
@@ -28,7 +28,7 @@ export function AirisBadge({
           {label}
         </span>
       )}
-      <span className="inline-flex items-center rounded-lg bg-white px-2 py-1">
+      <span className="partner-logo inline-flex items-center rounded-lg px-2 py-1">
         <Image
           src="/airis-logo.png"
           alt="Airis IT Consult"

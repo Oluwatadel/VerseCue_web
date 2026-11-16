@@ -5,7 +5,7 @@ export default function Hero() {
     <section className="container-x grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-2 lg:py-20" aria-labelledby="hero-title">
       <div>
         <p className="mb-6 inline-flex rounded-full border border-blue-300/20 bg-blue-400/10 px-4 py-2 text-sm text-blue-700">Windows desktop · Built for church media</p>
-        <h1 id="hero-title" className="text-4xl font-black leading-[1.05] sm:text-6xl lg:text-7xl">The Word,<span className="block bg-gradient-to-r from-blue-700 via-blue-600 to-[#765314] bg-clip-text text-transparent">Made Visible.</span></h1>
+        <h1 id="hero-title" className="hero-title text-5xl sm:text-6xl lg:text-7xl">The Word,<span className="block">Made Visible.</span></h1>
         <p className="mt-6 max-w-2xl text-base leading-8 text-slate-700 sm:text-lg">Bring Bible lookup, projection, songs, slides and video into one free desktop workspace for preachers and church media teams.</p>
         <p className="mt-4 max-w-xl leading-7 text-slate-500">Activate optional AI transcription and automatic verse detection when you need them. Preview, queue and choose what reaches the congregation.</p>
         <div className="mt-7 flex flex-wrap gap-3">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AirisBadge, Logo } from "./Logo";
 
 export default function Footer() {
-  return <footer className="border-t border-slate-200">
+  return <footer className="site-footer border-t border-slate-200">
     <div className="container-x grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr]">
       <div><Link href="/" className="inline-flex" aria-label="verseVIO home"><Logo iconSize={30} /></Link><p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">Scripture lookup, sermon preparation and presentation controls for preachers and church media teams.</p></div>
       <div><p className="font-semibold">verseVIO</p><ul className="mt-4 space-y-3 text-sm text-slate-600"><li><Link href="/features">Features</Link></li><li><Link href="/download">Downloads</Link></li><li><Link href="/pricing">Pricing & plans</Link></li><li><Link href="/account">Account dashboard</Link></li><li><Link href="/releases">Release notes</Link></li><li><Link href="/about">About the app</Link></li></ul></div>
