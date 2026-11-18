@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import {PGlite} from '@electric-sql/pglite';
+import {readFile,readdir} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import {supportNotificationEmail} from '../lib/support-notifications';
+import {supportAnswer,chatTranscript} from '../lib/support-chat';
+import {EmailService} from '../lib/email-service';
+import {SupportService} from '../lib/support-service';
+import {LicenseError} from '../lib/licensing-security';
+import type {LicensingDb,Statement} from '../lib/licensing-db';
+async function main(){process.env.SUPPORT_NOTIFICATION_EMAIL='owner@example.invalid';const pg=new PGlite();let checks=0;const check=(ok:unknown,label:string)=>{assert.ok(ok,label);checks++;console.log('PASS '+label);};try{
+ for(const name of (await readdir('db')).filter(n=>/^\d+.*\.sql$/.test(n)).sort())await pg.exec(await readFile('db/'+name,'utf8'));
+ await pg.exec(await readFile('db/018-support-workflow.sql','utf8'));check(true,'Support migration is additive and repeatable');
+ const db:LicensingDb={query:async(t,v=[]) =>(await pg.query(t,v)).rows as any[],transaction:async(items:Statement[])=>pg.transaction(async tx=>{const result:any[]=[];for(const item of items)result.push((await tx.query(item.text,item.values||[])).rows);return result;})};
+ const support=new SupportService(db),account={id:randomUUID(),email:'customer@example.invalid'},other={id:randomUUID(),email:'other@example.invalid'};
+ for(const a of [account,other])await db.query('INSERT INTO vc_accounts(id,email,password_hash,organisation_name) VALUES($1,$2,$3,$4)',[a.id,a.email,'test-only','Grace Church']);
+ const created=await support.create(account,{category:'bug',subject:'Video does not play',description:'Expected video, observed black screen.',appVersion:'1.0.0',platform:'Windows 11',steps:'Open video, press play.'});
+ const detail=await support.detail(created.id,account.id);check(detail.request.app_version==='1.0.0'&&detail.request.steps_to_reproduce.includes('press play'),'Ticket retains optional diagnostic details');
+ await assert.rejects(()=>support.detail(created.id,other.id),e=>e instanceof LicenseError&&e.status===404);check(true,'Other accounts cannot read a ticket');
+ await support.update(created.id,{status:'in-progress',assignedTo:'Support team',priority:'high',internalNote:'Private investigation',reply:'Please check the video format.'});
+ check((await support.detail(created.id,account.id)).messages.length===1&&(await support.detail(created.id)).messages.length===2,'Internal investigation notes stay private');
+ const list=await support.list(undefined,{q:'customer@example.invalid',priority:'high',status:'in-progress'});check(list.total===1&&list.summary.some(s=>s.status==='in-progress'),'Admin filters and queue counts work');
+ check((await support.list(other.id,{q:created.id})).total===0,'Search never bypasses account ownership');
+ await assert.rejects(()=>support.list(undefined,{from:'bad date'}),e=>e instanceof LicenseError&&e.status===400);check(true,'Malformed dates rejected');
+ await assert.rejects(()=>support.update(created.id,{status:'resolved'}),e=>e instanceof LicenseError&&e.status===400);check(true,'Resolving requires a public explanation');
+ await support.update(created.id,{status:'resolved',resolutionSummary:'Installed supported video codec.'});check(!!(await support.detail(created.id)).request.resolved_at,'Resolution records summary and timestamp');
+ await support.feedback(created.id,account.id,{rating:5,feedback:'Video works now'});check((await support.detail(created.id)).request.customer_rating===5,'Customer can rate a resolved issue');
+ await assert.rejects(()=>support.feedback(created.id,other.id,{rating:1}),e=>e instanceof LicenseError&&e.status===404);check(true,'Feedback is owner-only');
+ await support.userReply(created.id,account,'Problem returned.');const reopened=(await support.detail(created.id)).request;check(reopened.status==='open'&&reopened.resolved_at===null&&reopened.customer_rating===null,'Customer reply reopens issue and clears obsolete resolution status');
+ for(let n=0;n<26;n++)await db.query('INSERT INTO vc_support_requests(id,account_id,category,subject,description) VALUES($1,$2,$3,$4,$5)',[randomUUID(),account.id,'general','Question '+n,'Description']);
+ const first=await support.list(account.id),second=await support.list(account.id,{page:'2'});check(first.requests.length===25&&second.requests.length===2&&!second.requests.some(t=>first.requests.some(f=>f.id===t.id)),'Paginated history includes older tickets without duplicates');
+ const mail=await db.query("SELECT text_body FROM vc_email_outbox WHERE id LIKE 'support-update:%'");check(mail.some(m=>m.text_body.includes('Installed supported'))&&mail.every(m=>!m.text_body.includes('Private investigation')),'Email queues public updates without private notes');
+ const chatInput={category:'bug',subject:'Complaint from chat',description:'Please investigate the reported issue.',clientRequestId:randomUUID(),conversation:chatTranscript([{role:'user',text:'Video fails'},{role:'guide',text:'Check the selected display.'}])};
+ const chatTicket=await support.create(account,chatInput),retry=await support.create(account,chatInput);check(chatTicket.id===retry.id,'Chat retries do not create duplicate tickets');const thread=await support.detail(chatTicket.id,account.id);check(thread.messages.length===1&&thread.messages[0].body.includes('Customer: Video fails')&&thread.messages[0].body.includes('not a verified support-team reply'),'Reviewed chat is attached once and labelled as customer-shared automated guidance');
+ await assert.rejects(()=>support.detail(chatTicket.id,other.id),e=>e instanceof LicenseError&&e.status===404);check(true,'Chat complaint stays private to the submitting account');
+ check(supportAnswer('Hello').text.includes('Hello')&&supportAnswer('save PDF notes').href==='/docs/transcript-notes','Visitor guide answers greetings and app questions without account access');
+ check(supportAnswer('something else').text.includes('not a live support agent'),'Fallback clearly identifies automated guidance');
+ await assert.rejects(()=>support.create(account,{...chatInput,clientRequestId:randomUUID(),conversation:'x'.repeat(6001)}),e=>e instanceof LicenseError&&e.status===400);check(true,'Oversized chat attachments are rejected');
+ const notices=await db.query("SELECT * FROM vc_email_outbox WHERE id LIKE 'support-admin:%'");check(notices.length>0&&notices.every(n=>n.recipient==='owner@example.invalid'),'New complaints and user replies notify the configured personal inbox');
+ check(notices.filter(n=>n.id==='support-admin:created:'+chatTicket.id).length===1,'Retried chat submission queues only one admin notification');
+ check(notices.some(n=>n.text_body.includes('Problem returned.'))&&notices.every(n=>!n.text_body.includes('Private investigation')),'Admin email contains customer replies without forwarding private notes');
+ check(notices.every(n=>n.text_body.includes('/admin/support?ticket=')),'Admin notifications link to the correct support conversation');
+ class UnavailableDelivery extends EmailService{get configured(){return true;}async dispatch():Promise<{configured:boolean;sent:number;failed:number}>{throw new Error('Synthetic provider outage');}}
+ const offlineSupport=new SupportService(db,new UnavailableDelivery(db));const offlineTicket=await offlineSupport.create(account,{category:'general',subject:'Delivery outage fixture',description:'Complaint must remain saved.'});check(!!(await support.detail(offlineTicket.id,account.id)).request&&(await db.query("SELECT state FROM vc_email_outbox WHERE id=$1",['support-admin:created:'+offlineTicket.id]))[0].state==='queued','Mail delivery failure preserves the complaint and queued notification');
+ process.env.SUPPORT_NOTIFICATION_EMAIL='unsafe@example.invalid\nBcc:other@example.invalid';check(supportNotificationEmail()===null,'Notification destination rejects header injection');delete process.env.SUPPORT_NOTIFICATION_EMAIL;check(supportNotificationEmail()===null,'No admin email is sent to an invented default destination');
+ console.log(checks+' support workflow checks passed.');
+ }finally{await pg.close();}}
+main().catch(error=>{console.error(error);process.exitCode=1;});

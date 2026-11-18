@@ -22,7 +22,7 @@ node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3087
 - `/features`: the full desktop feature overview.
 - `/download`: Windows installer placeholder. macOS and Linux are marked coming soon.
 - `/docs`: user-guide index, with six guides at `/docs/[slug]`.
-- `/support`: troubleshooting links, FAQs and a local support-report builder.
+- `/support`: troubleshooting links, FAQs, a local support-report builder and access to account support tickets.
 - `/about`: product purpose and Airis IT Consult attribution.
 - `/releases`: factual development notes and installer availability.
 
@@ -155,3 +155,15 @@ Apply migration 015 with npm run db:migrate before deploying the updated desktop
 The website overview, feature catalogue, FAQ, download information, release notes and `/docs/transcript-notes` describe the saved-transcript notes workflow. The local LLM organizes source-grounded excerpts into an editable draft. Optional instructions guide selection and grouping (400 characters). Generation requires existing paid/admin AI access and paused capture. Editing and export remain available without paid AI. PDF and Word (.docx) exports include formatted headings and export date/time; Markdown and text remain available. No online conversion or Office installation is required. The source transcript is preserved.
 
 The previously packaged Windows installer does not yet contain these changes. Website source has been updated locally, not deployed. Desktop implementation details: `../VerseCue/docs/TRANSCRIPT-NOTES.md`.
+
+## Support desk
+
+`/account/support` lets signed-in users submit complaints with category, app version, platform and reproduction steps, follow the conversation, reopen a resolved issue by replying and rate a resolution. `/admin/support` provides queue counts, a paginated table, search by reference/subject/email/church/assignee, status/category/priority/date filters, assignment, public replies, private investigation notes, resolution summary and timestamp, and customer feedback. Dates in filters use database UTC calendar days. User-facing email notifications use the existing outbox and Resend delivery worker; dashboard conversations work even while email is unconfigured. Email acceptance is not guaranteed delivery. Text only; recordings continue through the separate reviewed Test reports workflow. No automatic log upload occurs.
+
+Before deploying this update, run `npm run db:migrate` against the intended database to apply additive migration **018-support-workflow.sql**. Then deploy the website and package the matching desktop to expose its Support sidebar button. Existing accounts/authentication and `DATABASE_URL` are reused; no new secret is required. Use existing `RESEND_API_KEY`, verified `EMAIL_FROM` and email worker configuration for notifications. Tests: `npm run test:support`, `npm run test:organisations`, `npm run test:migrations`.
+
+### Support chat
+
+Public/account pages include an automated, curated support guide. Guests can converse without logging in or uploading their chat. Signed-in users can explicitly submit a complaint, optionally attach a reviewed conversation, and follow its ticket link for human replies. Chat messages are not sent to a hosted LLM and are not stored until submission. No new AI secret or migration is needed. See `docs/support-workflow.md`.
+
+Support notifications: configure server-only `SUPPORT_NOTIFICATION_EMAIL` on the host. New complaints/customer replies queue a private admin email and attempt delivery through existing Resend settings. Customers can read and reply to ticket conversations inside the on-page chat (10-second active-page refresh), independently of email. WhatsApp is documented as a future alternative and is not connected. No new database migration is needed beyond support migration 018.

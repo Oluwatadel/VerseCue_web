@@ -25,7 +25,8 @@
     "test:audit": "tsx tools/check-audit.ts",
     "test:updates": "tsx tools/check-update-feed.ts",
     "test:downloads": "tsx tools/check-download-access.ts",
-    "test:installations": "tsx tools/check-installation-analytics.ts"
+    "test:installations": "tsx tools/check-installation-analytics.ts",
+    "test:support": "tsx tools/check-support.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1166.0",
