@@ -19,3 +19,7 @@ Set server-only `SUPPORT_NOTIFICATION_EMAIL` to the inbox that should receive ne
 Customers can choose Conversations with support in the page chat, open their ticket and read/send real support replies. The conversation refreshes every 10 seconds while the chat is open and page visible. Admin replies from Admin → Support appear there. This is polling-based ticket messaging, not a promise of instant staffed assistance. Dashboard conversations work without email. Replies typed in a personal email client are not yet ingested into tickets.
 
 WhatsApp is reserved as a future support channel. Later work may link an official WhatsApp integration to the same ticket threads and replace email alerts by user/admin preference. No WhatsApp webhook, delivery, phone number, chatbot automation, paid provider or credentials are configured by this update.
+
+## Customer tracking and Assistant presentation
+
+Tickets created from dashboard actions and chatbot handoff use the same tracking system. Customers can copy their sign-in-protected tracking link, open the ticket in Assistant, see public status/resolution events and reply. Assistant uses messenger-style bubbles, the verseVIO avatar for automated guidance and initials for customers/support staff. Human replies remain labelled Support team; automated guidance is labelled separately. This does not upload user profile photographs or imply a live agent is online.

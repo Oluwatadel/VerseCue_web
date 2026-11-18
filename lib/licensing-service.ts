@@ -326,7 +326,7 @@ export class LicensingService {
     FROM (VALUES(1)) seed(v) LEFT JOIN vc_accounts a ON a.email=$2 AND a.status='active'
     RETURNING account_id`,values:[id,email,accountOnly?hash(randomBytes(32).toString("hex")):hash(code.replace(/-/g,"")),expires?.toISOString() || null,complimentary?"complimentary":"standard"]},
    {text:"INSERT INTO vc_license_audit(id,action,subject) VALUES($1,$2,$3)",values:[randomUUID(),complimentary?"grant-complimentary":"issue",email]},
-   {text:"UPDATE vc_email_outbox SET state='cancelled',text_body='' WHERE activation_license_id IN (SELECT id FROM vc_licenses WHERE owner_email=$1 AND status='revoked') AND state='queued'",values:[email]},
+   {text:"UPDATE vc_email_outbox SET state='cancelled',text_body='',html_body='' WHERE activation_license_id IN (SELECT id FROM vc_licenses WHERE owner_email=$1 AND status='revoked') AND state='queued'",values:[email]},
    {text:`INSERT INTO vc_email_outbox(id,account_id,recipient,subject,text_body,activation_license_id)
     SELECT $1,a.id,$2,'Your verseVIO AI activation',CASE WHEN $3::boolean AND a.id IS NOT NULL
      THEN $4 ELSE $5 END,$6 FROM (VALUES(1)) seed(v) LEFT JOIN vc_accounts a ON a.email=$2`,

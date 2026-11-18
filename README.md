@@ -166,4 +166,10 @@ Before deploying this update, run `npm run db:migrate` against the intended data
 
 Public/account pages include an automated, curated support guide. Guests can converse without logging in or uploading their chat. Signed-in users can explicitly submit a complaint, optionally attach a reviewed conversation, and follow its ticket link for human replies. Chat messages are not sent to a hosted LLM and are not stored until submission. No new AI secret or migration is needed. See `docs/support-workflow.md`.
 
-Support notifications: configure server-only `SUPPORT_NOTIFICATION_EMAIL` on the host. New complaints/customer replies queue a private admin email and attempt delivery through existing Resend settings. Customers can read and reply to ticket conversations inside the on-page chat (10-second active-page refresh), independently of email. WhatsApp is documented as a future alternative and is not connected. No new database migration is needed beyond support migration 018.
+Support notifications: configure server-only `SUPPORT_NOTIFICATION_EMAIL` on the host. New complaints/customer replies queue a private admin email and attempt delivery through existing Resend settings. Customers can read and reply to ticket conversations inside the on-page chat (10-second active-page refresh), independently of email. WhatsApp is documented as a future alternative and is not connected. Support uses migration 018; the shared HTML email templates additionally require migration 019.
+
+## Email templates and ticket tracking
+
+Welcome, support acknowledgement/review and admin notifications now use shared verseVIO HTML templates with plain-text alternatives. Apply migration 019 before deployment. See `docs/email-templates.md` for sender/reply settings, previews and stable retry behavior. Dashboard complaints and chatbot complaints share account-owned tickets, tracking links, status history and support-chat access.
+
+The Downloads & installations report now validates filters and identifies missing migration 017, read-permission failures and connectivity errors instead of reporting an unrelated activation failure. Its totals follow the chosen filters. This does not apply production migrations automatically; run `npm run db:migrate` against the intended database before deployment.
