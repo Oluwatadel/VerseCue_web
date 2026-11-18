@@ -173,3 +173,7 @@ Support notifications: configure server-only `SUPPORT_NOTIFICATION_EMAIL` on the
 Welcome, support acknowledgement/review and admin notifications now use shared verseVIO HTML templates with plain-text alternatives. Apply migration 019 before deployment. See `docs/email-templates.md` for sender/reply settings, previews and stable retry behavior. Dashboard complaints and chatbot complaints share account-owned tickets, tracking links, status history and support-chat access.
 
 The Downloads & installations report now validates filters and identifies missing migration 017, read-permission failures and connectivity errors instead of reporting an unrelated activation failure. Its totals follow the chosen filters. This does not apply production migrations automatically; run `npm run db:migrate` against the intended database before deployment.
+
+## Installable Admin / Support PWAs
+
+Admin and customer Support can be installed as separate standalone web apps from `/admin/support` and `/account/support`. Existing sign-in is required; private data remains network-only, with a generic offline screen and explicit update/reload controls. See `docs/admin-support-pwa.md`. No new secret or PWA-specific migration is required. Test with `npm run test:pwa`. Push notifications and physical-phone installation testing are not included.
