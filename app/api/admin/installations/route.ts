@@ -1,0 +1,8 @@
+import {admin,api} from '../../../../lib/licensing-api';
+import {licensingDb} from '../../../../lib/licensing-db';
+export const dynamic='force-dynamic';
+export async function GET(request:Request){return api(async()=>{await admin(request);const url=new URL(request.url),query=(url.searchParams.get('q')||'').slice(0,120),platform=url.searchParams.get('platform')||'',from=url.searchParams.get('from')||'1970-01-01',to=url.searchParams.get('to')||'2999-12-31';if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to))return {items:[],downloads:[]};const db=licensingDb();
+ const items=await db.query(`SELECT i.*,a.email,a.organisation_name,(SELECT sum(u.running_seconds)::int FROM vc_installation_usage u WHERE u.installation_id=i.id) AS seconds FROM vc_installations i LEFT JOIN vc_accounts a ON a.id=i.account_id WHERE i.last_seen >= $1::date AND i.last_seen < $2::date+interval '1 day' AND ($3='' OR i.platform=$3) AND ($4='' OR COALESCE(a.email,'') ILIKE $5 OR COALESCE(a.organisation_name,'') ILIKE $5 OR i.id ILIKE $5) ORDER BY i.last_seen DESC LIMIT 200`,[from,to,platform,query,'%'+query+'%']);
+ const downloads=await db.query(`SELECT d.platform,d.created_at,a.email,a.organisation_name FROM vc_downloads d JOIN vc_accounts a ON a.id=d.account_id WHERE d.created_at >= $1::date AND d.created_at < $2::date+interval '1 day' AND ($3='' OR d.platform=$3) AND ($4='' OR a.email ILIKE $5 OR a.organisation_name ILIKE $5) ORDER BY d.created_at DESC LIMIT 200`,[from,to,platform,query,'%'+query+'%']);
+ const totals=await db.query(`SELECT platform,count(*)::int AS downloads,max(created_at) AS latest_download FROM vc_downloads GROUP BY platform`);
+ return {items,downloads,totals};});}

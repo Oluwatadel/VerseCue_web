@@ -1,4 +1,4 @@
-# VerseCue website
+# verseVIO website
 
 A multi-page Next.js 14 product and support website for the VerseCue Windows desktop app, developed by Airis IT Consult.
 
@@ -149,3 +149,9 @@ Optional desktop recordings can be reviewed and explicitly shared with administr
 ## verseVIO rebrand and browser desktop sign-in
 
 Apply migration 015 with npm run db:migrate before deploying the updated desktop/browser flow. Configure MOBILE_ANDROID_DOWNLOAD_URL after publishing the APK; downloads and LAN control require active paid or complimentary access. Keep production signing/model keys and actual deployment origin stable. See ../VERSEVIO-ROLLOUT.md.
+
+## Transcript notes — next desktop update (18 November 2026)
+
+The website overview, feature catalogue, FAQ, download information, release notes and `/docs/transcript-notes` describe the saved-transcript notes workflow. The local LLM organizes source-grounded excerpts into an editable draft. Optional instructions guide selection and grouping (400 characters). Generation requires existing paid/admin AI access and paused capture. Editing and export remain available without paid AI. PDF and Word (.docx) exports include formatted headings and export date/time; Markdown and text remain available. No online conversion or Office installation is required. The source transcript is preserved.
+
+The previously packaged Windows installer does not yet contain these changes. Website source has been updated locally, not deployed. Desktop implementation details: `../VerseCue/docs/TRANSCRIPT-NOTES.md`.

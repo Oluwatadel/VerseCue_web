@@ -2,6 +2,7 @@ import {NextResponse} from "next/server";
 import {service,ACCOUNT_COOKIE} from "../../../../lib/licensing-api";
 import {LicenseError} from "../../../../lib/licensing-security";
 import {cookies} from "next/headers";
+import {startDownload} from "../../../../lib/download-access";
 import {getWindowsInstallerUrl} from "../../../../lib/site-config";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -13,8 +14,9 @@ export async function GET(request:Request){
   if(!account.organisation_name?.trim())return NextResponse.redirect(new URL("/account",request.url));
   const url=getWindowsInstallerUrl();
   if(!url)return NextResponse.json({error:"The Windows installer has not been published yet."},{status:503,headers:{"Cache-Control":"no-store"}});
-  await service().recordDownload(token);
-  const response=NextResponse.redirect(url);response.headers.set("Cache-Control","no-store");return response;
+
+  if(new URL(request.url).searchParams.get("prepare")==="1")return NextResponse.json({url:startDownload("windows").href},{headers:{"Cache-Control":"no-store"}});
+  const response=NextResponse.redirect(startDownload("windows"));response.headers.set("Cache-Control","no-store");return response;
  }catch(error){
   if(error instanceof LicenseError && error.status===401)return NextResponse.redirect(new URL("/account/login?next=/download",request.url));
   return NextResponse.json({error:error instanceof LicenseError?error.message:"Downloads are temporarily unavailable. Please try again."},{status:error instanceof LicenseError?error.status:503,headers:{"Cache-Control":"no-store"}});

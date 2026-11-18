@@ -3,13 +3,14 @@
 export const PRODUCT = {
   name: "verseVIO",
   title: "verseVIO — The Word, Made Visible.",
-  description: "A free Windows desktop workspace for Bible lookup, projection, songs, slides and video, with activated AI transcription, automatic verse detection and mobile control.",
+  description: "A free Windows desktop workspace for Bible lookup, projection, songs, slides and video, with free mobile presentation control and activated AI transcription, Scripture detection and sermon notes.",
   platform: "Windows desktop",
   availability: "Windows installer coming soon",
-  updated: "29 October 2026",
+  updated: "18 November 2026",
 };
 
 export const FEATURES = [
+  { icon: "✎", title: "Transcript → sermon notes", description: "Next desktop update: save a transcript, then let the local LLM organize source-grounded excerpts into editable notes. Add optional instructions and export dated PDF, Word, Markdown or text. Generation uses existing paid or admin-granted AI access." },
   { icon: "🎙", title: "Local speech recognition", description: "Optional activated AI transcription uses the included verseVIO Clarity model. Optional alternatives download from a dropdown and can be deleted when inactive." },
   { icon: "🔎", title: "Scripture suggestions", description: "Follow live transcription, detect spoken Bible references, and find candidate passages from paraphrased Scripture. Review every match before displaying it." },
   { icon: "🖥", title: "Preview before projection", description: "Click a recent detection once to preview it. Double-click or use Display to send it to the verse display. The operator stays in control." },
@@ -32,6 +33,7 @@ export const STEPS = [
 ];
 
 export const FAQS = [
+  { question: "Can I turn a saved sermon transcript into notes?", answer: "Yes, in the next desktop update. Save the transcript, open Transcript notes, pause listening, and choose Generate notes. Optional instructions guide the focus. Review and edit the draft, then export PDF, Word (.docx), Markdown or text with the export date and time. The local LLM selects and groups source excerpts; it does not invent missing details. AI generation requires paid or administrator-granted access. Editing and exporting are available without paid AI, and the original transcript is preserved." },
   { question: "Is verseVIO a website or a desktop app?", answer: "verseVIO is a Windows desktop application. This website provides free downloads, optional AI activation, user guides and support. It does not run live transcription or control a church projector." },
   { question: "Does it display verses automatically?", answer: "The main workflow is operator controlled: a single click previews a recent detection; a double-click or Display action projects it. Speech and Scripture suggestions can be inaccurate, so review the reference, translation and verse text." },
   { question: "Can the desktop app work without internet?", answer: "Bible lookup, projection, songs, slides and local video work offline for free once your files are installed. Optional AI features require initial website activation and desktop sign-in. Signed offline AI access lasts up to 72 hours by default, after which AI must reconnect. Free features keep working if AI expires. Model downloads and online resources need internet." },

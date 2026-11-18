@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const source = process.env.MOBILE_UPDATE_INDEX_URL?.trim();
   const platform = request.headers.get('expo-platform') || '';
   const version = request.headers.get('expo-runtime-version') || '';
-  if (!source || !['android','ios'].includes(platform) || !/^\d+\.\d+\.\d+$/.test(version)) return new Response(null,{status:204,headers});
+  if (!source || !['android','ios'].includes(platform) || !/^\d+\.\d+\.\d+(?:-native\d+)?$/.test(version)) return new Response(null,{status:204,headers});
   try {
     const manifest = mobileManifest(await releaseFeed(source, 524288), platform, version);
     if (!manifest) return new Response(null,{status:204,headers});

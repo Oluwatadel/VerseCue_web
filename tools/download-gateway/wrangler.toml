@@ -1,0 +1,5 @@
+name = "versevio-downloads"
+main = "worker.mjs"
+compatibility_date = "2026-11-17"
+# Configure WEBSITE_URL, WINDOWS_DOWNLOAD_URL and MOBILE_ANDROID_DOWNLOAD_URL.
+# Set DOWNLOAD_GATEWAY_SECRET with wrangler secret put; use the same secret in Vercel.

@@ -21,7 +21,7 @@ for(const bad of ['http://github.com/test','https://localhost/test','https://git
 const oldDesktop=process.env.DESKTOP_UPDATE_MANIFEST_URL;const oldMobile=process.env.MOBILE_UPDATE_INDEX_URL;const original=globalThis.fetch;
 try{
  delete process.env.DESKTOP_UPDATE_MANIFEST_URL;delete process.env.MOBILE_UPDATE_INDEX_URL;
- assert.equal((await desktop()).status,204);checks++;
+ assert.equal((await desktop(new Request('https://test/api/updates/desktop'))).status,204);checks++;
  assert.equal((await mobile(new Request('https://test/api'))).status,204);checks++;
  process.env.MOBILE_UPDATE_INDEX_URL='https://github.com/test/index.json';
  globalThis.fetch=async()=>new Response(index);

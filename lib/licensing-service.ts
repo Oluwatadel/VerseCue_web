@@ -116,11 +116,11 @@ export class LicensingService {
   await this.db.query("UPDATE vc_accounts SET organisation_name=$2,church_location=CASE WHEN $3::boolean THEN $4::jsonb ELSE church_location END WHERE id=$1",[account.id,organisation,location!==undefined,JSON.stringify(churchLocation(location))]);
   return {message:"Organisation saved."};
  }
- async recordDownload(token: string) {
+ async recordDownload(token: string, platform: "windows"|"android"="windows", requestId?:string) {
   const account=await this.account(token);
   if(account.session_kind!=="web")throw new LicenseError(401,"Sign in on the website to download verseVIO.");
   if(!account.organisation_name?.trim())throw new LicenseError(400,"Add your organisation name on your account page before downloading.");
-  await this.db.query("INSERT INTO vc_downloads(id,account_id) VALUES($1,$2)",[randomUUID(),account.id]);
+  await this.db.query("INSERT INTO vc_downloads(id,account_id,platform,request_id) VALUES($1,$2,$3,$4) ON CONFLICT(request_id) DO NOTHING",[randomUUID(),account.id,platform,requestId||randomUUID()]);
  }
  async freeDesktopLogin(input: Record<string,any>) {
   const account=await this.credentials(input.email,input.password);const d=await this.proof(input.device,account.email);

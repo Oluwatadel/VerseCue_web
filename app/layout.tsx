@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     "church media",
     "Scripture presentation",
     "sermon transcription",
+    "sermon notes PDF Word",
     "live church technology",
     "Bible verse detection",
     "Windows church presentation",

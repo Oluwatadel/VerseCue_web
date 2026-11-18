@@ -1,0 +1,5 @@
+import {createHash} from 'node:crypto';
+import {NextResponse} from 'next/server';
+import {getAndroidInstallerUrl,getWindowsInstallerUrl} from '../../../../lib/site-config';
+export const dynamic='force-dynamic';
+export async function GET(){const android=getAndroidInstallerUrl(),windows=getWindowsInstallerUrl();let fingerprint='';if(android)try{const remote=await fetch(android,{method:'HEAD',cache:'no-store',signal:AbortSignal.timeout(5000)});if(remote.ok)fingerprint=(remote.headers.get('etag')||'')+(remote.headers.get('last-modified')||'')+(remote.headers.get('content-length')||'');}catch{}const release=createHash('sha256').update((android||'unpublished')+fingerprint+(process.env.MOBILE_RELEASE_ID||'')).digest('hex').slice(0,16);return NextResponse.json({android:{available:!!android,release,version:process.env.MOBILE_PUBLIC_VERSION||'1.0.0',downloadPath:'/account/mobile-download?release='+release},windows:{available:!!windows,version:process.env.DESKTOP_PUBLIC_VERSION||'1.0.0'}},{headers:{'Cache-Control':'no-store'}});}

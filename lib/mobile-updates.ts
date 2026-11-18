@@ -3,7 +3,7 @@ import {mobileUpdateCertificate} from './mobile-update-certificate';
 import {releaseUrl} from './update-feeds';
 export type MobileRelease = {platform: string; runtimeVersion: string; body: string; signature: string};
 export function mobileManifest(index: string, platform: string, runtime: string): {body: Buffer; signature: string} | null {
-  if (!['android','ios'].includes(platform) || !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(runtime)) return null;
+  if (!['android','ios'].includes(platform) || !/^[0-9]+\.[0-9]+\.[0-9]+(?:-native[0-9]+)?$/.test(runtime)) return null;
   const entries: unknown = JSON.parse(index).releases;
   if (!Array.isArray(entries) || entries.length > 50) throw new Error('Invalid mobile release index.');
   const matching = entries.filter((x): x is MobileRelease => !!x && x.platform === platform && x.runtimeVersion === runtime);
