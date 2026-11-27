@@ -23,3 +23,17 @@ Admin → Analytics includes filterable installation and download tables (date, 
 Both apps expose a usage-sharing toggle. Desktop changes require Save; mobile changes apply immediately. Heartbeats include only random installation ID, platform, public version, reported free/paid tier and app running time. They do not contain audio, transcripts, displayed verses or file paths. Existing authenticated desktop usage sync remains available. Anonymous heartbeats are best-effort, deduplicated per installation/minute and rate limited; offline time may be absent. They are not proof of a download or a completed installation. Apply a hosting rate-limit rule to POST /api/analytics/installation before public release; client-controlled IDs cannot provide fraud-proof analytics.
 
 Visible version is 1.0.0. Windows internal assembly/file version remains 1.2.7.0 so existing installations can update; Android internal build is 8, and the native-compatible OTA runtime is 1.0.0-native8. Keep these internal values increasing for future native builds. Do not publish JS updates for native8 to older native runtimes.
+
+## Current Cloudflare configuration
+
+`tools/download-gateway/wrangler.toml` targets `versevio-downloads` and sets `WEBSITE_URL=https://www.goversevio.com`. The active Worker address supplied by the operator is `https://versevio-downloads.airisitconsult.workers.dev/`; set that as `DOWNLOAD_GATEWAY_URL` in Vercel only.
+
+`keep_vars = true` preserves the installer URLs entered in the Cloudflare dashboard when deploying with Wrangler. Actual installer asset URLs have not been supplied locally, so the configuration deliberately has no empty URL placeholders. Values explicitly defined under `[vars]` still override the same dashboard keys; update WEBSITE_URL here if the site origin changes. DOWNLOAD_GATEWAY_SECRET stays an encrypted Cloudflare secret, with the same value in Vercel; never commit it to Wrangler config.
+
+From this website directory, deploy the Worker with:
+
+```powershell
+npx wrangler deploy --config tools/download-gateway/wrangler.toml
+```
+
+This command publishes the gateway only. Vercel environment changes still require a separate Vercel redeployment. No gateway deployment was performed while updating this configuration.

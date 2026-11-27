@@ -1,5 +1,17 @@
 name = "versevio-downloads"
 main = "worker.mjs"
 compatibility_date = "2026-11-17"
-# Configure WEBSITE_URL, WINDOWS_DOWNLOAD_URL and MOBILE_ANDROID_DOWNLOAD_URL.
-# Set DOWNLOAD_GATEWAY_SECRET with wrangler secret put; use the same secret in Vercel.
+workers_dev = true
+# Preserve installer URLs configured in the Cloudflare dashboard on CLI deploys.
+# Their actual release asset URLs have not been supplied in this workspace.
+keep_vars = true
+
+[vars]
+WEBSITE_URL = "https://www.goversevio.com"
+# WINDOWS_DOWNLOAD_URL and MOBILE_ANDROID_DOWNLOAD_URL are managed in the dashboard.
+# Do not add empty placeholders: they would override the working dashboard values.
+
+# Set DOWNLOAD_GATEWAY_SECRET as a Cloudflare secret, not a [vars] value.
+# Use the same secret in Vercel. Wrangler deployments preserve existing secrets.
+# Vercel only:
+# DOWNLOAD_GATEWAY_URL=https://versevio-downloads.airisitconsult.workers.dev/

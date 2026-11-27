@@ -8,3 +8,5 @@ assert.equal(accountReturnPath('/account/upgrade?computers=-2&plan=monthly'),'/a
 assert.equal(accountReturnPath('/account/profile'),'/account/profile');
 assert.equal(accountReturnPath('/account/organisation'),'/account/organisation');
 console.log('PASS: login preserves approved plan/PC selections and rejects external or invalid return destinations.');
+
+assert.equal(accountReturnPath("/remote"),"/remote");

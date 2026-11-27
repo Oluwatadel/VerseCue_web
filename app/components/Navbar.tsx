@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 const NAV_LINKS = [
   { href: "/features", label: "Features" },
   { href: "/download", label: "Download" },
+  { href: "/remote", label: "Remote" },
   { href: "/pricing", label: "Pricing" },
   { href: "/docs", label: "Guides" },
   { href: "/support", label: "Support" },

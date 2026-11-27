@@ -4,11 +4,9 @@ import Image from "next/image";
 import { useState } from "react";
 
 const VIEWS = [
-  { label: "Live dashboard", src: "/screenshots/dashboard-transcription.png", width: 1800, height: 1061, description: "Follow a sample live transcript alongside recent detections, a bookmarked Bible queue and the operator's verse preview. Demonstration content and detection scores are illustrative, not measured accuracy." },
-  { label: "Theme preview", src: "/screenshots/theme-preview.png", width: 1500, height: 900, description: "Compare a pending theme beside Preferences. Save applies it; Discard keeps the active theme." },
-  { label: "Verse backgrounds", src: "/screenshots/background-preview.png", width: 900, height: 700, description: "Inspect the background behind verse text and adjust dimming before changing the live output." },
-  { label: "Motion screensavers", src: "/screenshots/screensaver-preview.png", width: 900, height: 700, description: "See the selected screensaver without verse text. In the desktop app, moving media previews silently on repeat." },
-  { label: "Speech models", src: "/screenshots/speech-models.png", width: 1500, height: 700, description: "verseVIO Clarity is bundled. Choose an optional model from the dropdown to download it, then Save to activate it." },
+  { label: "Live dashboard", src: "/screenshots/studio-dashboard.png", width: 1600, height: 960, description: "The Studio workspace keeps the Bible library, prepared preview, live display, transcription and recent detections together. This isolated capture uses a small test Bible library; it is not a speech-accuracy benchmark." },
+  { label: "Preview highlighting", src: "/screenshots/preview-highlighting.png", width: 1600, height: 960, description: "Select words directly in Preview, highlight them or adjust text size, then choose Update screen. Your prepared changes stay separate from the live output until applied." },
+  { label: "Text and banners", src: "/screenshots/text-banners.png", width: 1600, height: 960, description: "Prepare normal announcements or moving banners. Choose colours, direction, top or bottom placement and an automatic hide time. Stop banner removes the overlay while keeping the underlying content." },
 ];
 
 export default function DesktopWorkspace() {
@@ -19,7 +17,7 @@ export default function DesktopWorkspace() {
       <div className="max-w-3xl">
         <p className="eyebrow">Inside the desktop app</p>
         <h2 id="workspace-title" className="mt-3 text-3xl font-bold sm:text-4xl">See your choices before the congregation does.</h2>
-        <p className="mt-4 leading-7 text-slate-600">Follow transcription, review recent detections and prepare the next verse from the main dashboard. Explore the gallery for appearance previews and speech-model controls.</p>
+        <p className="mt-4 leading-7 text-slate-600">Follow transcription, review recent detections and prepare the next verse from the main dashboard. Explore the current Studio workflow, preview highlighting and announcement controls.</p>
       </div>
       <div className="mt-7 flex flex-wrap gap-2" aria-label="Desktop screenshots">
         {VIEWS.map((item, index) => <button key={item.label} type="button" aria-pressed={selected === index}
@@ -32,7 +30,7 @@ export default function DesktopWorkspace() {
         </div>
         <figcaption className="border-t border-slate-200 p-5">
           <p className="text-sm leading-6 text-slate-700">{view.description}</p>
-          <p className="mt-2 text-xs text-slate-500">Current desktop interface with demonstration content. Screenshots are still images; appearance varies with the selected theme and window size.</p>
+          <p className="mt-2 text-xs text-slate-500">Actual desktop controls captured locally on 26 November 2026 with demonstration content. These development screenshots may be newer than the published installer. Appearance varies with theme and window size.</p>
         </figcaption>
       </figure>
     </section>

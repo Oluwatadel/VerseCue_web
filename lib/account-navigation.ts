@@ -1,5 +1,5 @@
 export function accountReturnPath(value:string|null,fallback="/account"){
- if(value==="/account/mobile-download"||value==="/download"||value==="/account"||value==="/account/support"||value==="/account/profile"||value==="/account/organisation")return value;
+ if(value==="/account/mobile-download"||value==="/download"||value==="/remote"||value==="/account"||value==="/account/support"||value==="/account/profile"||value==="/account/organisation")return value;
  if(value?.startsWith('/account/connect-desktop?')){try{const u=new URL(value,'https://local.invalid');const code=u.searchParams.get('code');if(u.origin==='https://local.invalid'&&u.pathname==='/account/connect-desktop'&&code&&/^[A-F0-9]{10}$/.test(code))return '/account/connect-desktop?code='+code;}catch{}}
  if(value?.startsWith("/account/upgrade")){
   try{const url=new URL(value,"https://versecue.invalid");if(url.origin!=="https://versecue.invalid"||url.pathname!=="/account/upgrade")return fallback;

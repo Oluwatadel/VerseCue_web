@@ -6,10 +6,12 @@ export const PRODUCT = {
   description: "A free Windows desktop workspace for Bible lookup, projection, songs, slides and video, with free mobile presentation control and activated AI transcription, Scripture detection and sermon notes.",
   platform: "Windows desktop",
   availability: "Windows installer coming soon",
-  updated: "18 November 2026",
+  updated: "27 November 2026",
 };
 
 export const FEATURES = [
+  { icon: "↗", title: "Free mobile remote", description: "Pair the landscape Android companion from Preferences → Mobile remote. Control Bible references, songs, slides, media and service plans over your private network. AI functions use the desktop’s paid or admin-granted access. Download and setup instructions are on the Remote page." },
+  { icon: "✎", title: "Preview edits and moving banners", description: "Select and highlight words in Preview, resize text, then Update screen. Prepare normal text or moving banners with colours, position, direction and automatic expiry or manual stop. Available in the current development build." },
   { icon: "✎", title: "Transcript → sermon notes", description: "Next desktop update: save a transcript, then let the local LLM organize source-grounded excerpts into editable notes. Add optional instructions and export dated PDF, Word, Markdown or text. Generation uses existing paid or admin-granted AI access." },
   { icon: "🎙", title: "Local speech recognition", description: "Optional activated AI transcription uses the included verseVIO Clarity model. Optional alternatives download from a dropdown and can be deleted when inactive." },
   { icon: "🔎", title: "Scripture suggestions", description: "Follow live transcription, detect spoken Bible references, and find candidate passages from paraphrased Scripture. Review every match before displaying it." },
